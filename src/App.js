@@ -2,11 +2,15 @@ import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
 
+let count = 0;
+const updateCount = (count) => count + 1;
+
 class App extends Component {
   state = {
     isDrawing: false,
     startDrawingPositionX: null,
-    startDrawingPositionY: null
+    startDrawingPositionY: null,
+    groups: [],
   };
 
   stage;
@@ -22,6 +26,28 @@ class App extends Component {
     });
 
     this.layer = new Konva.Layer();
+
+    const imageObj = new Image();
+    imageObj.onload = (e) => {
+
+      const imageNaturalHeight = e.target.naturalHeight;
+      const imageNaturalWidth = e.target.naturalWidth;
+
+      const imageToDetect = new Konva.Image({
+        x: 0,
+        y: 0,
+        image: imageObj,
+        width: imageNaturalWidth,
+        height: imageNaturalHeight
+      });
+
+      // add the shape to the layer
+      this.layer.add(imageToDetect);
+
+      // add the layer to the stage
+      this.layer.draw();
+    };
+    imageObj.src = 'https://pp.userapi.com/c840326/v840326095/49957/hNhQKMcMU0o.jpg';
 
     this.stage.on('mousedown', (e) => {
       console.log(e.target);
@@ -39,7 +65,8 @@ class App extends Component {
       this.group = new Konva.Group({
         x: e.evt.pageX,
         y: e.evt.pageY,
-        draggable: true
+        draggable: true,
+        id: updateCount(count)
       });
 
       this.rect = new Konva.Rect({
@@ -55,6 +82,19 @@ class App extends Component {
         strokeWidth: 2,
         name: 'rect'
       });
+
+      this.setState({
+        groups: [...this.state.groups, this.group]
+      });
+
+      this.state.groups.forEach(item => item.on('click', () => {
+        this.setState({
+          groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
+        });
+
+        item.remove();
+        this.layer.draw()
+      }));
 
       this.group.add(this.rect);
       this.layer.add(this.group);
@@ -73,6 +113,7 @@ class App extends Component {
 
       this.layer.draw();
     });
+
     this.stage.on('mouseup', () => {
       this.setState({
         isDrawing: false,
@@ -84,9 +125,10 @@ class App extends Component {
     this.stage.add(this.layer);
   }
 
+
   render() {
     return (
-        <div id='container' />
+        <div id='container' style={ { border: '5px solid black' } } />
     );
   }
 }
