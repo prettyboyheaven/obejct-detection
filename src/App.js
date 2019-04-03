@@ -5,16 +5,17 @@ import './App.css';
 let count = 0;
 const updateCount = (count) => count + 1;
 
-
-
-
 class App extends Component {
   state = {
+    canvasHeight: 450,
+    canvasWidth: 700,
     isDrawing: false,
     startDrawingPositionX: null,
     startDrawingPositionY: null,
     groups: [],
-    ratio: null
+    ratio: null,
+    scale: null,
+    naturalScale: null
   };
 
   stage;
@@ -23,26 +24,45 @@ class App extends Component {
   group;
 
   componentDidMount() {
+    const { canvasHeight, canvasWidth } = this.state;
+
+    // создаем Stage - канвас, для рисования
     this.stage = new Konva.Stage({
       container: 'container',
-      width: 700,
-      height: 450,
+      width: canvasWidth,
+      height: canvasHeight,
     });
 
     this.layer = new Konva.Layer();
 
+    // доавбляем изображение для модерации
     const imageObj = new Image();
     imageObj.onload = (e) => {
 
       const imageNaturalHeight = e.target.naturalHeight;
       const imageNaturalWidth = e.target.naturalWidth;
 
-      const imageSize = this.calculateAspectRatioFit(imageNaturalWidth, imageNaturalHeight, 700, 450);
-      console.log(imageSize);
+      // расчитываем необходимый ресайз изображения под канвас
+      const imageSize = this.calculateAspectRatioFit(imageNaturalWidth, imageNaturalHeight, canvasWidth, canvasHeight);
 
+      // расчитываем скейл для позиционирования по центру
+      this.calculateScale(imageSize.width, imageSize.height);
+      const left = imageSize.width * this.state.scale;
+      const top = imageSize.height * this.state.scale;
+
+      this.setState({
+         shiftX: canvasWidth / 2 -  left / 2,
+         shiftY: canvasHeight / 2 - top / 2,
+      });
+
+      const { shiftX, shiftY } = this.state;
+
+      // добавляем изображения
       const imageToDetect = new Konva.Image({
-        x: 0,
-        y: 0,
+        x: shiftX,
+        y: shiftY,
+        // x: 0,
+        // y: 0,
         image: imageObj,
         width: imageSize.width,
         height: imageSize.height,
@@ -50,17 +70,38 @@ class App extends Component {
 
       //imageToDetect.rotate(90)
 
-      // add the shape to the layer
+      // обновляем леер
       this.layer.add(imageToDetect);
-      // add the layer to the stage
       this.layer.draw();
     };
-    imageObj.src = 'https://pp.userapi.com/c847221/v847221287/15c995/iKuT4gxoNPk.jpg';
+    imageObj.src = 'https://pp.userapi.com/c639725/v639725381/6664/cCh0WZjFyec.jpg';
+
+    this.stage.on('click tap',  (e) => {
+      // // if click on empty area - remove all transformers
+      // if (e.target === this.stage) {
+      //   this.stage.find('Transformer').destroy();
+      //   this.layer.draw();
+      //   return;
+      // }
+      // // do nothing if clicked NOT on our rectangles
+      // if (!e.target.hasName('rect')) {
+      //   return;
+      // }
+      // // remove old transformers
+      // // TODO: we can skip it if current rect is already selected
+      // this.stage.find('Transformer').destroy();
+
+      // create new transformer
+      const tr = new Konva.Transformer();
+      this.layer.add(tr);
+      tr.attachTo(e.target);
+      this.layer.draw();
+    });
 
     this.stage.on('mousedown', (e) => {
       console.log(e.evt);
 
-      if(e.target.attrs.name === 'rect') {
+      if ( e.target.hasName('rect') ) {
         return
       }
 
@@ -70,6 +111,7 @@ class App extends Component {
         startDrawingPositionY: e.evt.layerY,
       });
 
+      // создаем группу, в которой хранится рект и иконка удаления
       this.group = new Konva.Group({
         x: e.evt.layerX,
         y: e.evt.layerY,
@@ -78,8 +120,8 @@ class App extends Component {
       });
 
       this.rect = new Konva.Rect({
-        x: e.evt.pageX,
-        y: e.evt.pageY,
+        x: e.evt.layerX,
+        y: e.evt.layerY,
         width: 0,
         height: 0,
         fill: 'rgba(255, 255, 255, 0.7)',
@@ -95,7 +137,13 @@ class App extends Component {
         groups: [...this.state.groups, this.group]
       });
 
-      this.state.groups.forEach(item => item.on('click', () => {
+      // добавляем событие удаления только по клику на иконку крестика
+      this.state.groups.forEach(item => item.on('click', (e) => {
+
+        if (!e.target.attrs.image) {
+          return
+        }
+
         this.setState({
           groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
         });
@@ -109,10 +157,11 @@ class App extends Component {
       this.group.draw();
     });
 
+    // рисуем рект, при этом отменяем всплытие события для того, чтобы при днд не рисовать еще один рект
     this.stage.on('mousemove', (e) => {
       e.cancelBubble = true;
 
-      if(!this.state.isDrawing) {
+      if (!this.state.isDrawing) {
         return
       }
 
@@ -122,6 +171,7 @@ class App extends Component {
       this.layer.draw();
     });
 
+    // проверяем условия ректа и добавляем иконку удаления
     this.stage.on('mouseup', () => {
 
       const { attrs } = this.rect;
@@ -169,26 +219,35 @@ class App extends Component {
   }
 
   handleGetData = () => {
-    const { ratio } = this.state;
+    const { ratio, shiftX, shiftY } = this.state;
+    let groupsCoordinates = [];
 
-    const { x, y, width, height } = this.state.groups[0].getClientRect();
+    class CoordsWithResizeToOriginalImage {
+      constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+      }
+    }
 
-    const coordsWithRatio = {
-      x: Math.round(x / ratio),
-      y: Math.round(y / ratio),
-      width: Math.round(width / ratio),
-      height: Math.round(height / ratio)
-    };
+    this.state.groups.forEach(group => {
+      const { x, y, width, height } = group.getClientRect();
 
-    console.log(coordsWithRatio);
+      groupsCoordinates.push( new CoordsWithResizeToOriginalImage(
+          Math.round((x - shiftX) / ratio),
+          Math.round((y - shiftY) / ratio),
+          Math.round(width / ratio),
+          Math.round(height / ratio)
+      ))
+    });
+    console.log(JSON.stringify(groupsCoordinates));
   };
 
   calculateAspectRatioFit = (srcWidth, srcHeight, maxWidth, maxHeight) => {
-
     this.setState({
       ratio: Math.min(maxWidth / srcWidth, maxHeight / srcHeight)
     });
-
     const { ratio } = this.state;
 
     return {
@@ -197,6 +256,13 @@ class App extends Component {
     };
   };
 
+  calculateScale = (imgWidth, imgHeight) => {
+    const { canvasWidth, canvasHeight } = this.state;
+
+    this.setState({
+      scale: Math.min(canvasWidth / imgWidth, canvasHeight / imgHeight)
+    })
+  };
 
   render() {
     return (
