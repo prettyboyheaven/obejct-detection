@@ -135,7 +135,7 @@ class App extends Component {
         }
 
         // запрет выхода наверх по Y
-        if (groupPositionY < 0) {
+        if (groupPositionY  < 0) {
           e.target.attrs.y = 0
         }
 
@@ -179,7 +179,7 @@ class App extends Component {
 
           /* TODO calc width and height of rect after transform */
           currentGroup.on('transformend', (e) => {
-
+             console.log(e.target);
           });
 
           this.layer.add(transformer);
@@ -205,14 +205,42 @@ class App extends Component {
     this.stage.on('mousemove', (e) => {
       e.cancelBubble = true;
 
+      let posNow = {x: e.evt.layerX, y: e.evt.layerY};
+      let posStart = { x: this.state.startDrawingPositionX, y: this.state.startDrawingPositionY };
+
+      function reverse(r1, r2){
+        let r1x = r1.x, r1y = r1.y, r2x = r2.x,  r2y = r2.y, d;
+        if (r1x > r2x ){
+          d = Math.abs(r1x - r2x);
+          r1x = r2x; r2x = r1x + d;
+        }
+        if (r1y > r2y ){
+          d = Math.abs(r1y - r2y);
+          r1y = r2y; r2y = r1y + d;
+        }
+        return ({x1: r1x, y1: r1y, x2: r2x, y2: r2y}); // return the corrected rect.
+      }
+
+      const updateDrag = (posIn) => {
+
+        // update rubber rect position
+        posNow = {x: posIn.x, y: posIn.y};
+        let posRect = reverse(posStart,posNow);
+        this.group.x(posRect.x1);
+        this.group.y(posRect.y1);
+        this.rect.width(posRect.x2 - posRect.x1);
+        this.rect.height(posRect.y2 - posRect.y1);
+        this.rect.visible(true);
+
+        this.layer.draw();
+
+      };
+
       if (!this.state.isDrawing) {
         return
       }
 
-      this.rect.attrs.width = e.evt.layerX - this.state.startDrawingPositionX;
-      this.rect.attrs.height = e.evt.layerY - this.state.startDrawingPositionY;
-
-      this.layer.draw();
+      updateDrag({x: e.evt.layerX, y: e.evt.layerY})
     });
 
     // проверяем условия ректа и добавляем иконку удаления
@@ -234,12 +262,11 @@ class App extends Component {
       crossImageObj.onload = () => {
 
         const crossImage = new Konva.Image({
-          x: 0,
-          y: 0,
+          x: 15,
+          y: 5,
           image: crossImageObj,
           width: 50,
           height: 50,
-          position: 'absolute'
         });
 
         //imageToDetect.rotate(90)
