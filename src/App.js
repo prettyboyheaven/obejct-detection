@@ -2,8 +2,7 @@ import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
 
-let count = 0;
-const updateCount = (count) => count + 1;
+const image = 'https://pp.userapi.com/c849228/v849228696/9afdb/G-PBRGJK3I4.jpg';
 
 class App extends Component {
   state = {
@@ -15,7 +14,8 @@ class App extends Component {
     groups: [],
     ratio: null,
     scale: null,
-    naturalScale: null
+    naturalScale: null,
+    cords: [{width: 0, height: 0, x: 0, y: 0}]
   };
 
   stage;
@@ -74,27 +74,14 @@ class App extends Component {
       this.layer.add(imageToDetect);
       this.layer.draw();
     };
-    imageObj.src = 'https://pp.userapi.com/c639725/v639725381/6664/cCh0WZjFyec.jpg';
+    imageObj.src = image;
 
-    this.stage.on('click tap',  (e) => {
-      // // if click on empty area - remove all transformers
-      // if (e.target === this.stage) {
-      //   this.stage.find('Transformer').destroy();
-      //   this.layer.draw();
-      //   return;
-      // }
-      // // do nothing if clicked NOT on our rectangles
-      // if (!e.target.hasName('rect')) {
-      //   return;
-      // }
-      // // remove old transformers
-      // // TODO: we can skip it if current rect is already selected
-      // this.stage.find('Transformer').destroy();
-
-      // create new transformer
-      const tr = new Konva.Transformer();
-      this.layer.add(tr);
-      tr.attachTo(e.target);
+    // Удаляем трансофрме со стейджа, по клику в любое место, кроме ректа
+    this.stage.on('click',  (e) => {
+      if ( e.target.hasName('rect')) {
+        return
+      }
+      this.stage.find('Transformer').destroy();
       this.layer.draw();
     });
 
@@ -111,27 +98,68 @@ class App extends Component {
         startDrawingPositionY: e.evt.layerY,
       });
 
+
       // создаем группу, в которой хранится рект и иконка удаления
       this.group = new Konva.Group({
         x: e.evt.layerX,
         y: e.evt.layerY,
         draggable: true,
-        id: updateCount(count)
+        name: 'group',
+      });
+
+      this.group.on('dragmove', function(e) {
+        const rect = e.target.getChildren(function(node) {
+          return node.getClassName() === 'Rect'
+        })[0];
+
+        const rectWidth = rect.attrs.width;
+        const rectHeight = rect.attrs.height;
+
+        const groupPositionX = e.target.attrs.x;
+        const groupPositionY = e.target.attrs.y;
+
+        // для запрета сдвига в право
+        const sumX = groupPositionX + rectWidth;
+
+        // для запрета сдвига вниз
+        const sumY = groupPositionY + rectHeight;
+
+        // запрет выхода за правый край по Х
+        if ( sumX >= canvasWidth) {
+          e.target.attrs.x = canvasWidth - rectWidth;
+        }
+
+        // запрет выхода за левый край по Х
+        if (groupPositionX <= 0) {
+          e.target.attrs.x = 0
+        }
+
+        // запрет выхода наверх по Y
+        if (groupPositionY < 0) {
+          e.target.attrs.y = 0
+        }
+
+        // запрет выходна вниз по Y
+        if ( sumY >= canvasHeight ) {
+          e.target.attrs.y = canvasHeight - rectHeight;
+        }
+
       });
 
       this.rect = new Konva.Rect({
-        x: e.evt.layerX,
-        y: e.evt.layerY,
+        x: 0,
+        y: 0,
         width: 0,
         height: 0,
         fill: 'rgba(255, 255, 255, 0.7)',
         stroke: 'black',
-        position: 'relative',
         overflow: 'hidden',
         cursor: 'pointer',
         strokeWidth: 2,
-        name: 'rect'
+        name: 'rect',
       });
+
+      this.layer.draw();
 
       this.setState({
         groups: [...this.state.groups, this.group]
@@ -139,8 +167,23 @@ class App extends Component {
 
       // добавляем событие удаления только по клику на иконку крестика
       this.state.groups.forEach(item => item.on('click', (e) => {
-
+        this.stage.find('Transformer').destroy();
         if (!e.target.attrs.image) {
+
+          const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
+
+          const transformer = new Konva.Transformer({
+            node: currentGroup,
+            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+          });
+
+          /* TODO calc width and height of rect after transform */
+          currentGroup.on('transformend', (e) => {
+
+          });
+
+          this.layer.add(transformer);
+          this.layer.draw();
           return
         }
 
@@ -148,6 +191,7 @@ class App extends Component {
           groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
         });
 
+        this.stage.find('Transformer').destroy();
         item.remove();
         this.layer.draw()
       }));
@@ -185,28 +229,28 @@ class App extends Component {
         this.layer.draw()
       }
 
-      const crossImage = new Image();
+      const crossImageObj = new Image();
 
-      crossImage.onload = () => {
+      crossImageObj.onload = () => {
 
-        const imageToDetect = new Konva.Image({
-          x: this.group.attrs.x,
+        const crossImage = new Konva.Image({
+          x: 0,
           y: 0,
-          image: imageObj,
-          width: 30,
-          height: 30,
+          image: crossImageObj,
+          width: 50,
+          height: 50,
           position: 'absolute'
         });
 
         //imageToDetect.rotate(90)
 
         // add the shape to the layer
-        this.group.add(imageToDetect);
+        this.group.add(crossImage);
         // add the layer to the stage
         this.layer.draw();
       };
 
-      crossImage.src = 'https://upload.wikimedia.org/wikipedia/ru/4/49/%D0%9F%D0%BE%D0%BA%D0%B5%D0%BC%D0%BE%D0%BD_%D0%98%D0%B2%D0%B8.png'
+      crossImageObj.src = 'https://upload.wikimedia.org/wikipedia/ru/4/49/%D0%9F%D0%BE%D0%BA%D0%B5%D0%BC%D0%BE%D0%BD_%D0%98%D0%B2%D0%B8.png'
 
       this.setState({
         isDrawing: false,
@@ -242,6 +286,9 @@ class App extends Component {
       ))
     });
     console.log(JSON.stringify(groupsCoordinates));
+    this.setState({
+      cords: groupsCoordinates
+    })
   };
 
   calculateAspectRatioFit = (srcWidth, srcHeight, maxWidth, maxHeight) => {
@@ -265,9 +312,23 @@ class App extends Component {
   };
 
   render() {
-    return (
-        [<div key='1' id='container' style={ { border: '5px solid black', width: '700px', height: '450px', margin: '25px 0' } } />, <button onClick={ this.handleGetData } key='2'>get rects</button>]
 
+    const { cords } = this.state;
+
+    return (
+        [
+            <div key='1' id='container' style={ { border: '5px solid black', width: '700px', height: '450px', margin: '25px 0' } } />,
+            <button onClick={ this.handleGetData } key='2'>get rects</button>,
+            <div key='3' className='container' style={ { position: 'relative' } }>
+              <img src={ image } alt=""/>
+              { cords.map((item, index) => (
+                  <div key={ index } style={ { height: item.height, width: item.width, top: item.y, left: item.x, position: 'absolute', background: 'rgba(0, 255, 2, 0.7)' } }>
+
+                  </div>
+              )) }
+
+            </div>
+        ]
     );
   }
 }
