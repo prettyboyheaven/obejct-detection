@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
 
-const image = 'https://pp.userapi.com/c849228/v849228696/9afdb/G-PBRGJK3I4.jpg';
+const image = 'https://pp.userapi.com/c850436/v850436154/1054bc/Grf6sgUxIco.jpg';
 
 class App extends Component {
   state = {
@@ -61,14 +61,25 @@ class App extends Component {
       const imageToDetect = new Konva.Image({
         x: shiftX,
         y: shiftY,
-        // x: 0,
-        // y: 0,
         image: imageObj,
         width: imageSize.width,
         height: imageSize.height,
       });
 
-      //imageToDetect.rotate(90)
+
+      // let's go rotate image relative to it's center!
+// we need to set offset to define new "center" of image
+      imageToDetect.offsetX(imageToDetect.width() / 2);
+      imageToDetect.offsetY(imageToDetect.height() / 2);
+// when we are setting {x,y} properties we are setting position of top left corner of image.
+// but after applying offset when we are setting {x,y}
+// properties we are setting position of central point of image.
+// so we also need to move the image to see previous result
+      imageToDetect.x(imageToDetect.x() + imageToDetect.width() / 2);
+      imageToDetect.y(imageToDetect.y() + imageToDetect.height() / 2);
+
+      // imageToDetect.rotation(90);
+
 
       // обновляем леер
       this.layer.add(imageToDetect);
@@ -86,7 +97,6 @@ class App extends Component {
     });
 
     this.stage.on('mousedown', (e) => {
-      console.log(e.evt);
 
       if ( e.target.hasName('rect') ) {
         return
@@ -97,7 +107,6 @@ class App extends Component {
         startDrawingPositionX: e.evt.layerX,
         startDrawingPositionY: e.evt.layerY,
       });
-
 
       // создаем группу, в которой хранится рект и иконка удаления
       this.group = new Konva.Group({
@@ -174,7 +183,17 @@ class App extends Component {
 
           const transformer = new Konva.Transformer({
             node: currentGroup,
-            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+            rotateEnabled: false,
+            enabledAnchors: [
+                'top-left',
+                'top-center',
+                'top-right',
+                'middle-right',
+                'middle-left',
+                'bottom-left',
+                'bottom-center',
+                'bottom-right'
+            ]
           });
 
           /* TODO calc width and height of rect after transform */
@@ -312,13 +331,22 @@ class App extends Component {
           Math.round(height / ratio)
       ))
     });
-    console.log(JSON.stringify(groupsCoordinates));
+
+    const filteredGroupsCoordinates = groupsCoordinates.filter(item => {
+      if(item.x < - 50 || item.y < -50) {
+        return null
+      }
+
+      return item;
+    });
+
+    console.log(JSON.stringify(filteredGroupsCoordinates));
     this.setState({
-      cords: groupsCoordinates
+      cords: filteredGroupsCoordinates
     })
   };
 
-  calculateAspectRatioFit = (srcWidth, srcHeight, maxWidth, maxHeight) => {
+  calculateAspectRatioFit = (srcWidth, srcHeight, maxHeight, maxWidth ) => {
     this.setState({
       ratio: Math.min(maxWidth / srcWidth, maxHeight / srcHeight)
     });
