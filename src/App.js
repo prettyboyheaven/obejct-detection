@@ -1,8 +1,33 @@
 import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
+import multiply from './multiply.svg';
 
-const image = 'https://pp.userapi.com/c850436/v850436154/1054bc/Grf6sgUxIco.jpg';
+const image = 'https://pp.userapi.com/c626428/v626428538/534dd/AxiptB14av8.jpg';
+
+const reverse = (r1, r2) => {
+  let r1x = r1.x, r1y = r1.y, r2x = r2.x,  r2y = r2.y, d;
+  if (r1x > r2x ){
+    d = Math.abs(r1x - r2x);
+    r1x = r2x; r2x = r1x + d;
+  }
+  if (r1y > r2y ){
+    d = Math.abs(r1y - r2y);
+    r1y = r2y; r2y = r1y + d;
+  }
+  return ({x1: r1x, y1: r1y, x2: r2x, y2: r2y}); // return the corrected rect.
+};
+
+const updateDrag = (posNow, posStart, group, rect, layer) => {
+  // update rubber rect position
+  let posRect = reverse(posStart, posNow);
+  group.x(posRect.x1);
+  group.y(posRect.y1);
+  rect.width(posRect.x2 - posRect.x1);
+  rect.height(posRect.y2 - posRect.y1);
+  rect.visible(true);
+  layer.draw();
+};
 
 class App extends Component {
   state = {
@@ -22,6 +47,8 @@ class App extends Component {
   layer;
   rect;
   group;
+  imageToDetect;
+  crossImage;
 
   componentDidMount() {
     const { canvasHeight, canvasWidth } = this.state;
@@ -58,7 +85,7 @@ class App extends Component {
       const { shiftX, shiftY } = this.state;
 
       // добавляем изображения
-      const imageToDetect = new Konva.Image({
+      this.imageToDetect = new Konva.Image({
         x: shiftX,
         y: shiftY,
         image: imageObj,
@@ -66,23 +93,18 @@ class App extends Component {
         height: imageSize.height,
       });
 
+//  в будущем необходимый код для ротейта изображения
+//  imageToDetect.offsetX(imageToDetect.width() / 2);
+//  imageToDetect.offsetY(imageToDetect.height() / 2);
 
-      // let's go rotate image relative to it's center!
-// we need to set offset to define new "center" of image
-      imageToDetect.offsetX(imageToDetect.width() / 2);
-      imageToDetect.offsetY(imageToDetect.height() / 2);
-// when we are setting {x,y} properties we are setting position of top left corner of image.
-// but after applying offset when we are setting {x,y}
-// properties we are setting position of central point of image.
-// so we also need to move the image to see previous result
-      imageToDetect.x(imageToDetect.x() + imageToDetect.width() / 2);
-      imageToDetect.y(imageToDetect.y() + imageToDetect.height() / 2);
-
-      // imageToDetect.rotation(90);
+//  imageToDetect.x(imageToDetect.x() + imageToDetect.width() / 2);
+//  imageToDetect.y(imageToDetect.y() + imageToDetect.height() / 2);
+//
+//  imageToDetect.rotation(90);
 
 
       // обновляем леер
-      this.layer.add(imageToDetect);
+      this.layer.add(this.imageToDetect);
       this.layer.draw();
     };
     imageObj.src = image;
@@ -102,6 +124,35 @@ class App extends Component {
         return
       }
 
+      const { evt: { layerX, layerY } } = e;
+      const { attrs: imageToDetectAttrs } = this.imageToDetect;
+
+      const imageToDetectX1 = imageToDetectAttrs.x;
+      const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+      const imageToDetectY1 = imageToDetectAttrs.y;
+      const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+
+      // если кликаем за областью фотокарточки, то не даем пользователю рисовать
+      // слева по х
+      if (layerX < imageToDetectX1) {
+        return
+      }
+
+      // справа по х
+      if (layerX > imageToDetectX2) {
+        return
+      }
+
+      // сверху по у
+      if (imageToDetectY1 > layerY) {
+        return
+      }
+
+      // снизу по у
+      if (imageToDetectY2 < layerY) {
+        return
+      }
+
       this.setState({
         isDrawing: true,
         startDrawingPositionX: e.evt.layerX,
@@ -116,7 +167,7 @@ class App extends Component {
         name: 'group',
       });
 
-      this.group.on('dragmove', function(e) {
+      this.group.on('dragmove', (e) => {
         const rect = e.target.getChildren(function(node) {
           return node.getClassName() === 'Rect'
         })[0];
@@ -127,6 +178,13 @@ class App extends Component {
         const groupPositionX = e.target.attrs.x;
         const groupPositionY = e.target.attrs.y;
 
+        const { attrs: imageToDetectAttrs } = this.imageToDetect;
+        const imageToDetectX1 = imageToDetectAttrs.x;
+        const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+        const imageToDetectY1 = imageToDetectAttrs.y;
+        const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+
+
         // для запрета сдвига в право
         const sumX = groupPositionX + rectWidth;
 
@@ -134,23 +192,23 @@ class App extends Component {
         const sumY = groupPositionY + rectHeight;
 
         // запрет выхода за правый край по Х
-        if ( sumX >= canvasWidth) {
-          e.target.attrs.x = canvasWidth - rectWidth;
+        if ( sumX >= imageToDetectX2) {
+          e.target.attrs.x = imageToDetectX2 - rectWidth;
         }
 
         // запрет выхода за левый край по Х
-        if (groupPositionX <= 0) {
-          e.target.attrs.x = 0
+        if (groupPositionX <= imageToDetectX1) {
+          e.target.attrs.x = imageToDetectX1;
         }
 
         // запрет выхода наверх по Y
-        if (groupPositionY  < 0) {
-          e.target.attrs.y = 0
+        if (groupPositionY  < imageToDetectY1) {
+          e.target.attrs.y = imageToDetectY1;
         }
 
         // запрет выходна вниз по Y
-        if ( sumY >= canvasHeight ) {
-          e.target.attrs.y = canvasHeight - rectHeight;
+        if ( sumY >= imageToDetectY2 ) {
+          e.target.attrs.y = imageToDetectY2 - rectHeight;
         }
 
       });
@@ -165,7 +223,7 @@ class App extends Component {
         overflow: 'hidden',
         cursor: 'pointer',
         strokeWidth: 2,
-        name: 'rect',
+        name: 'rect'
       });
 
       this.layer.draw();
@@ -181,9 +239,14 @@ class App extends Component {
 
           const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
 
+          const minHeight = 20;
+          const minWidth = 20;
+
           const transformer = new Konva.Transformer({
             node: currentGroup,
             rotateEnabled: false,
+            keepRatio: true,
+            borderEnabled: true,
             enabledAnchors: [
                 'top-left',
                 'top-center',
@@ -193,12 +256,47 @@ class App extends Component {
                 'bottom-left',
                 'bottom-center',
                 'bottom-right'
-            ]
+            ],
+            boundBoxFunc: function(oldBoundBox, newBoundBox) {
+              if (newBoundBox.width < minWidth) {
+                newBoundBox.width = minWidth;
+              }
+
+              if (newBoundBox.height < minHeight) {
+                newBoundBox.height = minHeight;
+              }
+
+              return newBoundBox;
+            }
           });
 
           /* TODO calc width and height of rect after transform */
-          currentGroup.on('transformend', (e) => {
-             console.log(e.target);
+          currentGroup.on('transform', (e) => {
+
+            const scaleX = e.currentTarget.attrs.scaleX;
+            console.log(scaleX);
+
+            const rect = e.currentTarget.getChildren(function(node) {
+              return node.getClassName() === 'Rect';
+            })[0];
+
+            console.log(rect);
+
+            this.crossImage.setAttr('width', 15);
+            this.crossImage.setAttr('scaleX', 1);
+            // console.log(e.target);
+            // const { width, height } = e.target.getClientRect();
+            // console.log(width, height, "// width, height");
+            //
+            // const rect = e.target.getChildren(function(node) {
+            //   return node.getClassName() === 'Rect'
+            // })[0];
+            //
+            // rect.setAttr('width', width);
+            // rect.setAttr('height', height);
+
+            // this.crossImage.attrs.width =  this.crossImage.attrs.width / e.target.attrs.scaleX;
+            // this.crossImage.attrs.height = this.crossImage.attrs.height / e.target.attrs.scaleY;
           });
 
           this.layer.add(transformer);
@@ -224,46 +322,58 @@ class App extends Component {
     this.stage.on('mousemove', (e) => {
       e.cancelBubble = true;
 
-      let posNow = {x: e.evt.layerX, y: e.evt.layerY};
-      let posStart = { x: this.state.startDrawingPositionX, y: this.state.startDrawingPositionY };
-
-      function reverse(r1, r2){
-        let r1x = r1.x, r1y = r1.y, r2x = r2.x,  r2y = r2.y, d;
-        if (r1x > r2x ){
-          d = Math.abs(r1x - r2x);
-          r1x = r2x; r2x = r1x + d;
-        }
-        if (r1y > r2y ){
-          d = Math.abs(r1y - r2y);
-          r1y = r2y; r2y = r1y + d;
-        }
-        return ({x1: r1x, y1: r1y, x2: r2x, y2: r2y}); // return the corrected rect.
+      if (!this.imageToDetect) {
+        return
       }
 
-      const updateDrag = (posIn) => {
+      const { attrs: imageToDetectAttrs } = this.imageToDetect;
 
-        // update rubber rect position
-        posNow = {x: posIn.x, y: posIn.y};
-        let posRect = reverse(posStart,posNow);
-        this.group.x(posRect.x1);
-        this.group.y(posRect.y1);
-        this.rect.width(posRect.x2 - posRect.x1);
-        this.rect.height(posRect.y2 - posRect.y1);
-        this.rect.visible(true);
+      let posNow = { x: e.evt.layerX, y: e.evt.layerY };
+      let posStart = { x: this.state.startDrawingPositionX, y: this.state.startDrawingPositionY };
 
-        this.layer.draw();
+      const imageToDetectX1 = imageToDetectAttrs.x;
+      const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+      const imageToDetectY1 = imageToDetectAttrs.y;
+      const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
 
-      };
+      // даем возможность рисовать только в рамках изображения
+      if (posNow.x < imageToDetectX1) {
+        posNow.x = imageToDetectX1;
+      }
+
+      if (posNow.x > imageToDetectX2) {
+        posNow.x = imageToDetectX2;
+      }
+
+      if (posNow.y < imageToDetectY1) {
+        posNow.y = imageToDetectY1;
+      }
+
+      if (posNow.y > imageToDetectY2) {
+        posNow.y = imageToDetectY2
+      }
 
       if (!this.state.isDrawing) {
         return
       }
 
-      updateDrag({x: e.evt.layerX, y: e.evt.layerY})
+      updateDrag(
+          posNow,
+          posStart,
+          this.group,
+          this.rect,
+          this.layer
+      );
     });
 
     // проверяем условия ректа и добавляем иконку удаления
     this.stage.on('mouseup', () => {
+
+      const { isDrawing } = this.state;
+
+      if (!isDrawing) {
+        return
+      }
 
       const { attrs } = this.rect;
 
@@ -280,23 +390,27 @@ class App extends Component {
 
       crossImageObj.onload = () => {
 
-        const crossImage = new Konva.Image({
-          x: 15,
-          y: 5,
+        const imageSize = 15;
+        const imagePositionFromAngle = 10;
+
+        this.crossImage = new Konva.Image({
+          x: this.rect.attrs.width - imageSize - imagePositionFromAngle,
+          y: imagePositionFromAngle,
           image: crossImageObj,
-          width: 50,
-          height: 50,
+          width: imageSize,
+          height: imageSize,
+          keepRatio: true
         });
 
         //imageToDetect.rotate(90)
 
         // add the shape to the layer
-        this.group.add(crossImage);
+        this.group.add(this.crossImage);
         // add the layer to the stage
         this.layer.draw();
       };
 
-      crossImageObj.src = 'https://upload.wikimedia.org/wikipedia/ru/4/49/%D0%9F%D0%BE%D0%BA%D0%B5%D0%BC%D0%BE%D0%BD_%D0%98%D0%B2%D0%B8.png'
+      crossImageObj.src = multiply;
 
       this.setState({
         isDrawing: false,
@@ -315,7 +429,9 @@ class App extends Component {
     class CoordsWithResizeToOriginalImage {
       constructor(x, y, width, height) {
         this.x = x;
+        this.x1 = x + width;
         this.y = y;
+        this.y1 = y + height;
         this.width = width;
         this.height = height;
       }
@@ -333,9 +449,17 @@ class App extends Component {
     });
 
     const filteredGroupsCoordinates = groupsCoordinates.filter(item => {
-      if(item.x < - 50 || item.y < -50) {
-        return null
-      }
+      // const validShift = 50;
+      // // в левую сторону и вверх
+      // if (item.x < -validShift || item.y < -validShift) {
+      //   return null
+      // }
+      //
+      // // в правую сторону
+      // const x2 = item.x + item.width;
+      // if (x2 - (this.imageToDetect.width() + validShift) > validShift) {
+      //   return null;
+      // }
 
       return item;
     });
@@ -346,7 +470,7 @@ class App extends Component {
     })
   };
 
-  calculateAspectRatioFit = (srcWidth, srcHeight, maxHeight, maxWidth ) => {
+  calculateAspectRatioFit = (srcWidth, srcHeight, maxWidth, maxHeight) => {
     this.setState({
       ratio: Math.min(maxWidth / srcWidth, maxHeight / srcHeight)
     });
