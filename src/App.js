@@ -119,6 +119,7 @@ class App extends Component {
     });
 
     this.stage.on('mousedown', (e) => {
+      console.log(e.target);
 
       if ( e.target.hasName('rect') ) {
         return
@@ -172,8 +173,10 @@ class App extends Component {
           return node.getClassName() === 'Rect'
         })[0];
 
-        const rectWidth = rect.attrs.width;
-        const rectHeight = rect.attrs.height;
+        const { scaleX, scaleY } = e.currentTarget.attrs;
+
+        const rectWidth = rect.attrs.width * scaleX;
+        const rectHeight = rect.attrs.height * scaleY;
 
         const groupPositionX = e.target.attrs.x;
         const groupPositionY = e.target.attrs.y;
@@ -183,6 +186,7 @@ class App extends Component {
         const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
         const imageToDetectY1 = imageToDetectAttrs.y;
         const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+
 
 
         // для запрета сдвига в право
@@ -268,35 +272,6 @@ class App extends Component {
 
               return newBoundBox;
             }
-          });
-
-          /* TODO calc width and height of rect after transform */
-          currentGroup.on('transform', (e) => {
-
-            const scaleX = e.currentTarget.attrs.scaleX;
-            console.log(scaleX);
-
-            const rect = e.currentTarget.getChildren(function(node) {
-              return node.getClassName() === 'Rect';
-            })[0];
-
-            console.log(rect);
-
-            this.crossImage.setAttr('width', 15);
-            this.crossImage.setAttr('scaleX', 1);
-            // console.log(e.target);
-            // const { width, height } = e.target.getClientRect();
-            // console.log(width, height, "// width, height");
-            //
-            // const rect = e.target.getChildren(function(node) {
-            //   return node.getClassName() === 'Rect'
-            // })[0];
-            //
-            // rect.setAttr('width', width);
-            // rect.setAttr('height', height);
-
-            // this.crossImage.attrs.width =  this.crossImage.attrs.width / e.target.attrs.scaleX;
-            // this.crossImage.attrs.height = this.crossImage.attrs.height / e.target.attrs.scaleY;
           });
 
           this.layer.add(transformer);
@@ -403,9 +378,9 @@ class App extends Component {
         });
 
         //imageToDetect.rotate(90)
-
+        // todo add cross for delete
         // add the shape to the layer
-        this.group.add(this.crossImage);
+        // this.group.add(this.crossImage);
         // add the layer to the stage
         this.layer.draw();
       };
