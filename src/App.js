@@ -226,7 +226,7 @@ class App extends Component {
         stroke: 'black',
         overflow: 'hidden',
         cursor: 'pointer',
-        strokeWidth: 2,
+        strokeWidth: 1,
         name: 'rect'
       });
 
