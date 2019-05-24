@@ -3,7 +3,7 @@ import Konva from 'konva';
 import './App.css';
 import multiply from './multiply.svg';
 
-const image = 'https://pp.userapi.com/c626428/v626428538/534dd/AxiptB14av8.jpg';
+const image = 'https://pp.userapi.com/c837338/v837338962/4186/dMDirqdiCMY.jpg';
 
 const reverse = (r1, r2) => {
   let r1x = r1.x, r1y = r1.y, r2x = r2.x,  r2y = r2.y, d;
@@ -47,6 +47,7 @@ class App extends Component {
   layer;
   rect;
   group;
+  drawingGroup;
   imageToDetect;
   crossImage;
 
@@ -114,6 +115,7 @@ class App extends Component {
       if ( e.target.hasName('rect')) {
         return
       }
+
       this.stage.find('Transformer').destroy();
       this.layer.draw();
     });
@@ -161,12 +163,26 @@ class App extends Component {
       });
 
       // создаем группу, в которой хранится рект и иконка удаления
-      this.group = new Konva.Group({
+      // this.group = new Konva.Group({
+      //   x: e.evt.layerX,
+      //   y: e.evt.layerY,
+      //   draggable: true,
+      //   name: 'group',
+      // });
+
+      this.drawingGroup = new Konva.Group({
         x: e.evt.layerX,
         y: e.evt.layerY,
+        draggable: false,
+        name: 'drawingGroup',
+      });
+
+      this.group = new Konva.Group({
+        x: 0,
+        y: 0,
         draggable: true,
         name: 'group',
-      });
+      }).add(this.drawingGroup);
 
       this.group.on('dragmove', (e) => {
         const rect = e.target.getChildren(function(node) {
@@ -186,8 +202,6 @@ class App extends Component {
         const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
         const imageToDetectY1 = imageToDetectAttrs.y;
         const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
-
-
 
         // для запрета сдвига в право
         const sumX = groupPositionX + rectWidth;
@@ -233,7 +247,7 @@ class App extends Component {
       this.layer.draw();
 
       this.setState({
-        groups: [...this.state.groups, this.group]
+        groups: [...this.state.groups, this.drawingGroup]
       });
 
       // добавляем событие удаления только по клику на иконку крестика
@@ -242,6 +256,7 @@ class App extends Component {
         if (!e.target.attrs.image) {
 
           const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
+          console.log(currentGroup);
 
           const minHeight = 20;
           const minWidth = 20;
@@ -288,7 +303,7 @@ class App extends Component {
         this.layer.draw()
       }));
 
-      this.group.add(this.rect);
+      this.drawingGroup.add(this.rect);
       this.layer.add(this.group);
       this.group.draw();
     });
@@ -335,14 +350,15 @@ class App extends Component {
       updateDrag(
           posNow,
           posStart,
-          this.group,
+          this.drawingGroup,
           this.rect,
           this.layer
       );
     });
 
     // проверяем условия ректа и добавляем иконку удаления
-    this.stage.on('mouseup', () => {
+    this.stage.on('mouseup', (e) => {
+      console.log(e);
 
       const { isDrawing } = this.state;
 
@@ -369,18 +385,23 @@ class App extends Component {
         const imagePositionFromAngle = 10;
 
         this.crossImage = new Konva.Image({
-          x: this.rect.attrs.width - imageSize - imagePositionFromAngle,
-          y: imagePositionFromAngle,
+          x: 0,
+          y: 0,
           image: crossImageObj,
           width: imageSize,
           height: imageSize,
-          keepRatio: true
+          keepRatio: true,
+          draggable: true
         });
 
         //imageToDetect.rotate(90)
         // todo add cross for delete
         // add the shape to the layer
-        // this.group.add(this.crossImage);
+        this.group.add(new Konva.Group({
+          x: this.drawingGroup.attrs.x + this.rect.attrs.width - imageSize * 2,
+          y: this.drawingGroup.attrs.y + imagePositionFromAngle,
+          draggable: false
+        }).add(this.crossImage));
         // add the layer to the stage
         this.layer.draw();
       };
@@ -424,25 +445,15 @@ class App extends Component {
     });
 
     const filteredGroupsCoordinates = groupsCoordinates.filter(item => {
-      // const validShift = 50;
-      // // в левую сторону и вверх
-      // if (item.x < -validShift || item.y < -validShift) {
-      //   return null
-      // }
-      //
-      // // в правую сторону
-      // const x2 = item.x + item.width;
-      // if (x2 - (this.imageToDetect.width() + validShift) > validShift) {
-      //   return null;
-      // }
-
       return item;
     });
 
     console.log(JSON.stringify(filteredGroupsCoordinates));
     this.setState({
       cords: filteredGroupsCoordinates
-    })
+    });
+
+    this.layer.clear();
   };
 
   calculateAspectRatioFit = (srcWidth, srcHeight, maxWidth, maxHeight) => {
@@ -476,11 +487,19 @@ class App extends Component {
             <div key='3' className='container' style={ { position: 'relative' } }>
               <img src={ image } alt=""/>
               { cords.map((item, index) => (
-                  <div key={ index } style={ { height: item.height, width: item.width, top: item.y, left: item.x, position: 'absolute', background: 'rgba(0, 255, 2, 0.7)' } }>
-
+                  <div
+                      key={ index }
+                      style={
+                        { height: item.height,
+                          width: item.width,
+                          top: item.y,
+                          left: item.x,
+                          position: 'absolute',
+                          background: 'rgba(0, 255, 2, 0.7)'
+                        } }
+                  >
                   </div>
               )) }
-
             </div>
         ]
     );
