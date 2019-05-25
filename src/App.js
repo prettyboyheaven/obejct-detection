@@ -173,29 +173,39 @@ class App extends Component {
       this.drawingGroup = new Konva.Group({
         x: e.evt.layerX,
         y: e.evt.layerY,
-        draggable: false,
-        name: 'drawingGroup',
+        draggable: true,
+        name: 'DrawingGroup',
       });
 
       this.group = new Konva.Group({
         x: 0,
         y: 0,
         draggable: true,
-        name: 'group',
       }).add(this.drawingGroup);
 
       this.group.on('dragmove', (e) => {
-        const rect = e.target.getChildren(function(node) {
+        const currentGroup = e.currentTarget;
+
+        const currentDrawingGroup = currentGroup.getChildren(function(node) {
+          return node.getClassName() === 'Group';
+        })[0];
+
+        console.log(currentDrawingGroup);
+
+        const rect = currentDrawingGroup.getChildren(function(node) {
           return node.getClassName() === 'Rect'
         })[0];
 
-        const { scaleX, scaleY } = e.currentTarget.attrs;
+        console.log(rect);
+
+
+        const { scaleX, scaleY } = currentDrawingGroup.attrs;
 
         const rectWidth = rect.attrs.width * scaleX;
         const rectHeight = rect.attrs.height * scaleY;
 
-        const groupPositionX = e.target.attrs.x;
-        const groupPositionY = e.target.attrs.y;
+        const groupPositionX = currentDrawingGroup.attrs.x;
+        const groupPositionY = currentDrawingGroup.attrs.y;
 
         const { attrs: imageToDetectAttrs } = this.imageToDetect;
         const imageToDetectX1 = imageToDetectAttrs.x;
@@ -211,22 +221,22 @@ class App extends Component {
 
         // запрет выхода за правый край по Х
         if ( sumX >= imageToDetectX2) {
-          e.target.attrs.x = imageToDetectX2 - rectWidth;
+          currentDrawingGroup.attrs.x = imageToDetectX2 - rectWidth;
         }
 
         // запрет выхода за левый край по Х
         if (groupPositionX <= imageToDetectX1) {
-          e.target.attrs.x = imageToDetectX1;
+          currentDrawingGroup.attrs.x = imageToDetectX1;
         }
 
         // запрет выхода наверх по Y
         if (groupPositionY  < imageToDetectY1) {
-          e.target.attrs.y = imageToDetectY1;
+          currentDrawingGroup.attrs.y = imageToDetectY1;
         }
 
         // запрет выходна вниз по Y
         if ( sumY >= imageToDetectY2 ) {
-          e.target.attrs.y = imageToDetectY2 - rectHeight;
+          currentDrawingGroup.attrs.y = imageToDetectY2 - rectHeight;
         }
 
       });
@@ -256,8 +266,6 @@ class App extends Component {
         if (!e.target.attrs.image) {
 
           const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
-          console.log(currentGroup);
-
           const minHeight = 20;
           const minWidth = 20;
 
@@ -358,7 +366,6 @@ class App extends Component {
 
     // проверяем условия ректа и добавляем иконку удаления
     this.stage.on('mouseup', (e) => {
-      console.log(e);
 
       const { isDrawing } = this.state;
 
@@ -390,8 +397,7 @@ class App extends Component {
           image: crossImageObj,
           width: imageSize,
           height: imageSize,
-          keepRatio: true,
-          draggable: true
+          position: 'relative'
         });
 
         //imageToDetect.rotate(90)
@@ -400,7 +406,8 @@ class App extends Component {
         this.group.add(new Konva.Group({
           x: this.drawingGroup.attrs.x + this.rect.attrs.width - imageSize * 2,
           y: this.drawingGroup.attrs.y + imagePositionFromAngle,
-          draggable: false
+          draggable: false,
+          position: 'absolute'
         }).add(this.crossImage));
         // add the layer to the stage
         this.layer.draw();
