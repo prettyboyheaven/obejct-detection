@@ -274,6 +274,14 @@ class App extends Component {
             }
           });
 
+          currentGroup.on('transform', function(e) {
+            const { scaleX, scaleY } = e.currentTarget.attrs;
+            const crossImage = e.currentTarget.getChildren(function(node) {
+              return node.getClassName() === 'Image'
+            })[0];
+
+          });
+
           this.layer.add(transformer);
           this.layer.draw();
           return
@@ -380,7 +388,7 @@ class App extends Component {
         //imageToDetect.rotate(90)
         // todo add cross for delete
         // add the shape to the layer
-        // this.group.add(this.crossImage);
+        this.group.add(this.crossImage);
         // add the layer to the stage
         this.layer.draw();
       };
