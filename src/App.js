@@ -162,18 +162,16 @@ class App extends Component {
 
       // создаем группу, в которой хранится рект и иконка удаления
       this.group = new Konva.Group({
-        x: e.evt.layerX,
-        y: e.evt.layerY,
-        draggable: true,
         name: 'group',
       });
 
       this.group.on('dragmove', (e) => {
-        const rect = e.target.getChildren(function(node) {
-          return node.getClassName() === 'Rect'
-        })[0];
+        const rect = e.target;
+        const { scaleX, scaleY } = rect.attrs;
 
-        const { scaleX, scaleY } = e.currentTarget.attrs;
+        const crossImage = rect.parent.getChildren(function(node) {
+          return node.getClassName() === 'Image';
+        })[0];
 
         const rectWidth = rect.attrs.width * scaleX;
         const rectHeight = rect.attrs.height * scaleY;
@@ -187,7 +185,8 @@ class App extends Component {
         const imageToDetectY1 = imageToDetectAttrs.y;
         const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
 
-
+        crossImage.x(groupPositionX + rectWidth - 15 * 2);
+        crossImage.y(groupPositionY + 10);
 
         // для запрета сдвига в право
         const sumX = groupPositionX + rectWidth;
@@ -198,28 +197,32 @@ class App extends Component {
         // запрет выхода за правый край по Х
         if ( sumX >= imageToDetectX2) {
           e.target.attrs.x = imageToDetectX2 - rectWidth;
+          crossImage.x(imageToDetectX2 - 15 * 2);
         }
 
         // запрет выхода за левый край по Х
         if (groupPositionX <= imageToDetectX1) {
           e.target.attrs.x = imageToDetectX1;
+          crossImage.x(imageToDetectX1 + rectWidth - 15 * 2);
         }
 
         // запрет выхода наверх по Y
         if (groupPositionY  < imageToDetectY1) {
           e.target.attrs.y = imageToDetectY1;
+          crossImage.y(imageToDetectY1 + 10);
         }
 
         // запрет выходна вниз по Y
         if ( sumY >= imageToDetectY2 ) {
           e.target.attrs.y = imageToDetectY2 - rectHeight;
-        }
+          crossImage.y(imageToDetectY2 - rectHeight + 10)
 
+        }
       });
 
       this.rect = new Konva.Rect({
-        x: 0,
-        y: 0,
+        x: e.evt.layerX,
+        y: e.evt.layerY,
         width: 0,
         height: 0,
         fill: 'rgba(255, 255, 255, 0.7)',
@@ -227,7 +230,8 @@ class App extends Component {
         overflow: 'hidden',
         cursor: 'pointer',
         strokeWidth: 1,
-        name: 'rect'
+        name: 'rect',
+        draggable: true
       });
 
       this.layer.draw();
@@ -242,12 +246,15 @@ class App extends Component {
         if (!e.target.attrs.image) {
 
           const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
+          const currentRect = currentGroup.getChildren(function(node) {
+            return node.getClassName() === 'Rect'
+          })[0];
 
-          const minHeight = 20;
-          const minWidth = 20;
+          const minHeight = 40;
+          const minWidth = 40;
 
           const transformer = new Konva.Transformer({
-            node: currentGroup,
+            node: currentRect,
             rotateEnabled: false,
             keepRatio: true,
             borderEnabled: true,
@@ -274,13 +281,23 @@ class App extends Component {
             }
           });
 
-          currentGroup.on('transform', function(e) {
-            const { scaleX, scaleY } = e.currentTarget.attrs;
-            const crossImage = e.currentTarget.getChildren(function(node) {
+          currentRect.on('transform', (e) => {
+            const { scaleX, width, x, y } = e.currentTarget.attrs;
+            const crossImage = e.currentTarget.parent.getChildren(function(node) {
               return node.getClassName() === 'Image'
             })[0];
 
-            crossImage.attrs.width = crossImage.attrs.width * scaleX;
+            const rectNewWidth = width * scaleX;
+
+            crossImage.x(x + rectNewWidth - 15 * 2);
+            crossImage.y(y + 10);
+
+            // const { attrs: imageToDetectAttrs } = this.imageToDetect;
+            // const imageToDetectX1 = imageToDetectAttrs.x;
+            // const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+            // const imageToDetectY1 = imageToDetectAttrs.y;
+            // const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+
           });
 
           this.layer.add(transformer);
@@ -344,7 +361,7 @@ class App extends Component {
       updateDrag(
           posNow,
           posStart,
-          this.group,
+          this.rect,
           this.rect,
           this.layer
       );
@@ -378,8 +395,8 @@ class App extends Component {
         const imagePositionFromAngle = 10;
 
         this.crossImage = new Konva.Image({
-          x: this.rect.attrs.width - imageSize - imagePositionFromAngle,
-          y: imagePositionFromAngle,
+          x: this.rect.attrs.x + this.rect.attrs.width - imageSize * 2,
+          y: this.rect.attrs.y + imagePositionFromAngle,
           image: crossImageObj,
           width: imageSize,
           height: imageSize,
@@ -433,17 +450,6 @@ class App extends Component {
     });
 
     const filteredGroupsCoordinates = groupsCoordinates.filter(item => {
-      // const validShift = 50;
-      // // в левую сторону и вверх
-      // if (item.x < -validShift || item.y < -validShift) {
-      //   return null
-      // }
-      //
-      // // в правую сторону
-      // const x2 = item.x + item.width;
-      // if (x2 - (this.imageToDetect.width() + validShift) > validShift) {
-      //   return null;
-      // }
 
       return item;
     });
