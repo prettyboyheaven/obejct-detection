@@ -178,9 +178,10 @@ class App extends Component {
       });
 
       this.group = new Konva.Group({
-        x: 0,
-        y: 0,
-        draggable: true,
+        x: e.evt.layerX,
+        y: e.evt.layerY,
+        draggable: false,
+        position: 'relative'
       }).add(this.drawingGroup);
 
       this.group.on('dragmove', (e) => {
@@ -297,10 +298,23 @@ class App extends Component {
             }
           });
 
+          currentGroup.on('transform', function (e) {
+            const crossImageGroup = e.currentTarget.parent.getChildren(function(node) {
+              return node.getClassName() === 'Group'
+            })[1];
+
+            console.log(crossImageGroup);
+
+            crossImageGroup.attrs.x = 100;
+
+          });
+
           this.layer.add(transformer);
           this.layer.draw();
           return
         }
+
+
 
         this.setState({
           groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
@@ -392,12 +406,12 @@ class App extends Component {
         const imagePositionFromAngle = 10;
 
         this.crossImage = new Konva.Image({
-          x: 0,
-          y: 0,
+          x: this.drawingGroup.attrs.x + this.rect.attrs.width - imageSize * 2,
+          y: this.drawingGroup.attrs.y + imagePositionFromAngle,
           image: crossImageObj,
           width: imageSize,
+          position: 'absolute',
           height: imageSize,
-          position: 'relative'
         });
 
         //imageToDetect.rotate(90)
@@ -407,7 +421,6 @@ class App extends Component {
           x: this.drawingGroup.attrs.x + this.rect.attrs.width - imageSize * 2,
           y: this.drawingGroup.attrs.y + imagePositionFromAngle,
           draggable: false,
-          position: 'absolute'
         }).add(this.crossImage));
         // add the layer to the stage
         this.layer.draw();
