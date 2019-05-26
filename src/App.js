@@ -280,6 +280,7 @@ class App extends Component {
               return node.getClassName() === 'Image'
             })[0];
 
+            crossImage.attrs.width = crossImage.attrs.width * scaleX;
           });
 
           this.layer.add(transformer);
