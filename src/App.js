@@ -282,6 +282,8 @@ class App extends Component {
           });
 
           currentRect.on('transform', (e) => {
+            const { layerX, layerY } = e.evt;
+
             const { scaleX, width, x, y } = e.currentTarget.attrs;
             const crossImage = e.currentTarget.parent.getChildren(function(node) {
               return node.getClassName() === 'Image'
@@ -292,11 +294,29 @@ class App extends Component {
             crossImage.x(x + rectNewWidth - 15 * 2);
             crossImage.y(y + 10);
 
-            // const { attrs: imageToDetectAttrs } = this.imageToDetect;
-            // const imageToDetectX1 = imageToDetectAttrs.x;
-            // const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
-            // const imageToDetectY1 = imageToDetectAttrs.y;
-            // const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+            const { attrs: imageToDetectAttrs } = this.imageToDetect;
+            const imageToDetectX1 = imageToDetectAttrs.x;
+            const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+            const imageToDetectY1 = imageToDetectAttrs.y;
+            const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+
+            // трансформация вправо
+            if (layerX >= imageToDetectX2) {
+              transformer.stopTransform();
+            }
+
+            // трансформация влево
+            if (layerX <= imageToDetectX1) {
+              transformer.stopTransform();
+            }
+
+            if (layerY <= imageToDetectY1) {
+              transformer.stopTransform();
+            }
+
+            if (layerY >= imageToDetectY2) {
+              transformer.stopTransform();
+            }
 
           });
 
