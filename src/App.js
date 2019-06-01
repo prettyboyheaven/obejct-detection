@@ -119,9 +119,11 @@ class App extends Component {
     });
 
     this.stage.on('mousedown', (e) => {
-      console.log(e.target);
+      if (e.target.hasName('rect')) {
+        return
+      }
 
-      if ( e.target.hasName('rect') ) {
+      if (e.target.parent.hasName('transformer')) {
         return
       }
 
@@ -278,7 +280,8 @@ class App extends Component {
               }
 
               return newBoundBox;
-            }
+            },
+            name: 'transformer'
           });
 
           currentRect.on('transform', (e) => {
