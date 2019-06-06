@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
-import multiply from './multiply.svg';
 
-const image = 'https://pp.userapi.com/c626428/v626428538/534dd/AxiptB14av8.jpg';
+const image = 'https://pp.userapi.com/c543106/v543106905/4a3c5/AGfDzFGLFxc.jpg';
 
 const reverse = (r1, r2) => {
   let r1x = r1.x, r1y = r1.y, r2x = r2.x,  r2y = r2.y, d;
@@ -57,7 +56,7 @@ class App extends Component {
     this.stage = new Konva.Stage({
       container: 'container',
       width: canvasWidth,
-      height: canvasHeight,
+      height: canvasHeight
     });
 
     this.layer = new Konva.Layer();
@@ -70,7 +69,12 @@ class App extends Component {
       const imageNaturalWidth = e.target.naturalWidth;
 
       // расчитываем необходимый ресайз изображения под канвас
-      const imageSize = this.calculateAspectRatioFit(imageNaturalWidth, imageNaturalHeight, canvasWidth, canvasHeight);
+      const imageSize = this.calculateAspectRatioFit(
+          imageNaturalWidth,
+          imageNaturalHeight,
+          canvasWidth,
+          canvasHeight
+      );
 
       // расчитываем скейл для позиционирования по центру
       this.calculateScale(imageSize.width, imageSize.height);
@@ -78,8 +82,8 @@ class App extends Component {
       const top = imageSize.height * this.state.scale;
 
       this.setState({
-         shiftX: canvasWidth / 2 -  left / 2,
-         shiftY: canvasHeight / 2 - top / 2,
+        shiftX: canvasWidth / 2 -  left / 2,
+        shiftY: canvasHeight / 2 - top / 2,
       });
 
       const { shiftX, shiftY } = this.state;
@@ -90,18 +94,8 @@ class App extends Component {
         y: shiftY,
         image: imageObj,
         width: imageSize.width,
-        height: imageSize.height,
+        height: imageSize.height
       });
-
-//  в будущем необходимый код для ротейта изображения
-//  imageToDetect.offsetX(imageToDetect.width() / 2);
-//  imageToDetect.offsetY(imageToDetect.height() / 2);
-
-//  imageToDetect.x(imageToDetect.x() + imageToDetect.width() / 2);
-//  imageToDetect.y(imageToDetect.y() + imageToDetect.height() / 2);
-//
-//  imageToDetect.rotation(90);
-
 
       // обновляем леер
       this.layer.add(this.imageToDetect);
@@ -111,20 +105,36 @@ class App extends Component {
 
     // Удаляем трансофрме со стейджа, по клику в любое место, кроме ректа
     this.stage.on('click',  (e) => {
-      if ( e.target.hasName('rect')) {
+
+      console.log(e.target);
+
+      if (e.target.getClassName() === 'Circle') {
         return
       }
-      this.stage.find('Transformer').destroy();
-      this.layer.draw();
-    });
 
-    this.stage.on('mousedown', (e) => {
       if (e.target.hasName('rect')) {
         return
       }
 
-      if (e.target.parent.hasName('transformer')) {
-        return
+      this.layer.draw();
+    });
+
+    this.stage.on('mousedown', (e) => {
+
+      if (e.target.getClassName() === 'Circle') {
+        return;
+      }
+
+      if (e.target.hasName('rect')) {
+        return;
+      }
+
+      if (e.target.hasName('CROSS_IMAGE')) {
+        return;
+      }
+
+      if (e.target.parent && e.target.parent.hasName('transformer')) {
+        return;
       }
 
       const { evt: { layerX, layerY } } = e;
@@ -159,12 +169,12 @@ class App extends Component {
       this.setState({
         isDrawing: true,
         startDrawingPositionX: e.evt.layerX,
-        startDrawingPositionY: e.evt.layerY,
+        startDrawingPositionY: e.evt.layerY
       });
 
       // создаем группу, в которой хранится рект и иконка удаления
       this.group = new Konva.Group({
-        name: 'group',
+        name: 'group'
       });
 
       this.group.on('dragmove', (e) => {
@@ -178,17 +188,14 @@ class App extends Component {
         const rectWidth = rect.attrs.width * scaleX;
         const rectHeight = rect.attrs.height * scaleY;
 
-        const groupPositionX = e.target.attrs.x;
-        const groupPositionY = e.target.attrs.y;
+        const groupPositionX = rect.attrs.x;
+        const groupPositionY = rect.attrs.y;
 
         const { attrs: imageToDetectAttrs } = this.imageToDetect;
         const imageToDetectX1 = imageToDetectAttrs.x;
         const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
         const imageToDetectY1 = imageToDetectAttrs.y;
         const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
-
-        crossImage.x(groupPositionX + rectWidth - 15 * 2);
-        crossImage.y(groupPositionY + 10);
 
         // для запрета сдвига в право
         const sumX = groupPositionX + rectWidth;
@@ -198,28 +205,56 @@ class App extends Component {
 
         // запрет выхода за правый край по Х
         if ( sumX >= imageToDetectX2) {
-          e.target.attrs.x = imageToDetectX2 - rectWidth;
-          crossImage.x(imageToDetectX2 - 15 * 2);
+          rect.attrs.x = imageToDetectX2 - rectWidth;
         }
 
         // запрет выхода за левый край по Х
         if (groupPositionX <= imageToDetectX1) {
-          e.target.attrs.x = imageToDetectX1;
-          crossImage.x(imageToDetectX1 + rectWidth - 15 * 2);
+          rect.attrs.x = imageToDetectX1;
         }
 
         // запрет выхода наверх по Y
-        if (groupPositionY  < imageToDetectY1) {
-          e.target.attrs.y = imageToDetectY1;
-          crossImage.y(imageToDetectY1 + 10);
+        if (groupPositionY <= imageToDetectY1) {
+          rect.attrs.y = imageToDetectY1;
         }
 
         // запрет выходна вниз по Y
         if ( sumY >= imageToDetectY2 ) {
-          e.target.attrs.y = imageToDetectY2 - rectHeight;
-          crossImage.y(imageToDetectY2 - rectHeight + 10)
-
+          rect.attrs.y = imageToDetectY2 - rectHeight;
         }
+
+        // вновь центрируем крестик для удаления
+        crossImage.x(this.getCenteredCoords(
+            rect.attrs.x,
+            rectWidth,
+            crossImage.attrs.width
+        ));
+
+        crossImage.y(this.getCenteredCoords(
+            rect.attrs.y,
+            rectHeight,
+            crossImage.attrs.height
+        ));
+
+        let topLeft = this.group.find('.topLeft')[0];
+        let topRight = this.group.find('.topRight')[0];
+        let bottomRight = this.group.find('.bottomRight')[0];
+        let bottomLeft = this.group.find('.bottomLeft')[0];
+
+        topLeft.y(this.rect.y());
+        topLeft.x(this.rect.x());
+
+        topRight.x(this.rect.x() + this.rect.width());
+        topRight.y(this.rect.y());
+
+        bottomLeft.x(this.rect.x());
+        bottomLeft.y(this.rect.y() + this.rect.height());
+
+        bottomRight.x(this.rect.x() + this.rect.width());
+        bottomRight.y(this.rect.height() + this.rect.y())
+
+
+
       });
 
       this.rect = new Konva.Rect({
@@ -244,97 +279,143 @@ class App extends Component {
 
       // добавляем событие удаления только по клику на иконку крестика
       this.state.groups.forEach(item => item.on('click', (e) => {
-        this.stage.find('Transformer').destroy();
-        if (!e.target.attrs.image) {
-
-          const currentGroup = this.state.groups.filter(groupItem => groupItem._id === e.target.parent._id)[0];
-          const currentRect = currentGroup.getChildren(function(node) {
-            return node.getClassName() === 'Rect'
-          })[0];
-
-          const minHeight = 40;
-          const minWidth = 40;
-
-          const transformer = new Konva.Transformer({
-            node: currentRect,
-            rotateEnabled: false,
-            keepRatio: true,
-            borderEnabled: true,
-            enabledAnchors: [
-                'top-left',
-                'top-center',
-                'top-right',
-                'middle-right',
-                'middle-left',
-                'bottom-left',
-                'bottom-center',
-                'bottom-right'
-            ],
-            boundBoxFunc: function(oldBoundBox, newBoundBox) {
-              if (newBoundBox.width < minWidth) {
-                newBoundBox.width = minWidth;
-              }
-
-              if (newBoundBox.height < minHeight) {
-                newBoundBox.height = minHeight;
-              }
-
-              return newBoundBox;
-            },
-            name: 'transformer'
+        if (e.target.attrs.image) {
+          this.setState({
+            groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
           });
 
-          currentRect.on('transform', (e) => {
-            const { layerX, layerY } = e.evt;
-
-            const { scaleX, width, x, y } = e.currentTarget.attrs;
-            const crossImage = e.currentTarget.parent.getChildren(function(node) {
-              return node.getClassName() === 'Image'
-            })[0];
-
-            const rectNewWidth = width * scaleX;
-
-            crossImage.x(x + rectNewWidth - 15 * 2);
-            crossImage.y(y + 10);
-
-            const { attrs: imageToDetectAttrs } = this.imageToDetect;
-            const imageToDetectX1 = imageToDetectAttrs.x;
-            const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
-            const imageToDetectY1 = imageToDetectAttrs.y;
-            const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
-
-            // трансформация вправо
-            if (layerX >= imageToDetectX2) {
-              transformer.stopTransform();
-            }
-
-            // трансформация влево
-            if (layerX <= imageToDetectX1) {
-              transformer.stopTransform();
-            }
-
-            if (layerY <= imageToDetectY1) {
-              transformer.stopTransform();
-            }
-
-            if (layerY >= imageToDetectY2) {
-              transformer.stopTransform();
-            }
-
-          });
-
-          this.layer.add(transformer);
+          item.remove();
           this.layer.draw();
           return
         }
 
-        this.setState({
-          groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
-        });
+        const buildAnchor = (group, x, y, name) => {
 
-        this.stage.find('Transformer').destroy();
-        item.remove();
-        this.layer.draw()
+          const update = (activeAnchor) => {
+            console.log('asd');
+            activeAnchor.setDraggable(true);
+            let group = activeAnchor.getParent();
+            let topLeft = group.find('.topLeft')[0];
+            let topRight = group.find('.topRight')[0];
+            let bottomRight = group.find('.bottomRight')[0];
+            let bottomLeft = group.find('.bottomLeft')[0];
+            let rect = this.rect;
+            let anchorX = activeAnchor.getX();
+            let anchorY = activeAnchor.getY();
+
+            switch (activeAnchor.getName()) {
+              case 'topLeft':
+                topRight.y(anchorY);
+                bottomLeft.x(anchorX);
+                break;
+              case 'topRight':
+                topLeft.y(anchorY);
+                bottomRight.x(anchorX);
+                break;
+              case 'bottomRight':
+                bottomLeft.y(anchorY);
+                topRight.x(anchorX);
+                break;
+              case 'bottomLeft':
+                bottomRight.y(anchorY);
+                topLeft.x(anchorX);
+                break;
+              default: alert('Ошибка при обновлении позиционирования якорей')
+            }
+
+            rect.position(topLeft.position());
+
+            let width = topRight.getX() - topLeft.getX();
+            let height = bottomLeft.getY() - topLeft.getY();
+
+            if(width < 30) {
+              width = 30;
+              this.rect.width(30);
+              activeAnchor.setDraggable(false);
+            }
+
+            if(height < 30) {
+              height = 30;
+              this.rect.height(30);
+              activeAnchor.setDraggable(false);
+            }
+
+            if (width && height) {
+              rect.width(width);
+              rect.height(height);
+            }
+          };
+
+          const anchor = new Konva.Circle({
+            x: x,
+            y: y,
+            stroke: '#666',
+            fill: '#ddd',
+            strokeWidth: 2,
+            radius: 5,
+            name: name,
+            draggable: true,
+            dragOnTop: false,
+          });
+
+          anchor.on('dragmove', (e) => {
+            update(e.target);
+
+
+            // this.crossImage.x(this.getCenteredCoords(
+            //     this.rect.attrs.x,
+            //     this.rect.attrs.width,
+            //     this.crossImage.attrs.width
+            // ));
+            //
+            // this.crossImage.y(this.getCenteredCoords(
+            //     this.rect.attrs.y,
+            //     this.rect.attrs.height,
+            //     this.crossImage.attrs.height
+            // ))
+          });
+
+          anchor.on('mousedown', (e) => {
+            e.target.setDraggable(true);
+            this.group.setDraggable(false);
+            anchor.moveToTop();
+          });
+
+          anchor.on('dragend', () => {
+            this.group.setDraggable(true);
+          });
+
+          this.group.add(anchor);
+          this.layer.draw();
+        };
+
+        buildAnchor(
+            this.group,
+            this.rect.attrs.x,
+            this.rect.attrs.y,
+            'topLeft'
+        );
+
+        buildAnchor(
+            this.group,
+            this.rect.attrs.x + this.rect.attrs.width,
+            this.rect.attrs.y,
+            'topRight'
+        );
+
+        buildAnchor(
+            this.group,
+            this.rect.attrs.x,
+            this.rect.attrs.y + this.rect.attrs.height,
+            'bottomLeft'
+        );
+
+        buildAnchor(
+            this.group,
+            this.rect.attrs.x + this.rect.attrs.width,
+            this.rect.attrs.y + this.rect.attrs.height,
+            'bottomRight'
+        );
       }));
 
       this.group.add(this.rect);
@@ -390,7 +471,7 @@ class App extends Component {
       );
     });
 
-    // проверяем условия ректа и добавляем иконку удаления
+    // проверяем условия ректа, если он мини, то дополняем его до минимальных размеров и добавляем иконку удаления
     this.stage.on('mouseup', () => {
 
       const { isDrawing } = this.state;
@@ -401,50 +482,76 @@ class App extends Component {
 
       const { attrs } = this.rect;
 
-      if (Math.abs(attrs.height) < 20 || Math.abs(attrs.width) < 20 ) {
-        this.setState({
-          groups: this.state.groups.filter(groupItem => groupItem._id !== this.group._id)
-        });
+      const rectHeight = Math.abs(attrs.height);
+      const rectWidth = Math.abs(attrs.width);
 
+      if (rectWidth === 0 && rectHeight === 0) {
         this.group.remove();
-        this.layer.draw()
+        this.layer.draw();
+        return;
       }
+
+      if (rectHeight < 20) {
+        attrs.height = 30;
+      }
+
+      if (rectWidth < 20) {
+        attrs.width = 30;
+      }
+
+      const imageToDetectX2 = this.imageToDetect.attrs.x + this.imageToDetect.attrs.width;
+      const imageToDetectY2 = this.imageToDetect.attrs.y + this.imageToDetect.attrs.height;
+
+      const rectX2 = attrs.width + attrs.x;
+      const rectY2 = attrs.height + attrs.y;
+
+      // если рисуем около границы и он выезжает за ее пределы
+      // внизу
+      if (rectX2 > imageToDetectX2) {
+        this.rect.x(imageToDetectX2 - this.rect.attrs.width);
+      }
+      // справа
+      if (rectY2 > imageToDetectY2) {
+        this.rect.y(imageToDetectY2 - this.rect.attrs.height);
+      }
+
+      this.layer.draw();
 
       const crossImageObj = new Image();
 
       crossImageObj.onload = () => {
 
         const imageSize = 15;
-        const imagePositionFromAngle = 10;
 
         this.crossImage = new Konva.Image({
-          x: this.rect.attrs.x + this.rect.attrs.width - imageSize * 2,
-          y: this.rect.attrs.y + imagePositionFromAngle,
+          x: this.getCenteredCoords(this.rect.attrs.x, this.rect.attrs.width, imageSize),
+          y: this.getCenteredCoords(this.rect.attrs.y, this.rect.attrs.height, imageSize),
           image: crossImageObj,
           width: imageSize,
           height: imageSize,
-          keepRatio: true
+          keepRatio: true,
+          name: 'CROSS_IMAGE'
         });
 
-        //imageToDetect.rotate(90)
-        // todo add cross for delete
-        // add the shape to the layer
         this.group.add(this.crossImage);
-        // add the layer to the stage
         this.layer.draw();
       };
 
-      crossImageObj.src = multiply;
+      crossImageObj.src = 'https://image.flaticon.com/icons/svg/463/463065.svg';
 
       this.setState({
         isDrawing: false,
         startDrawingPositionX: null,
-        startDrawingPositionY: null,
+        startDrawingPositionY: null
       })
     });
 
     this.stage.add(this.layer);
   }
+
+  getCenteredCoords = (axisRectCoordinate, rectMetrics, sizeOfContent) => {
+    return axisRectCoordinate + (rectMetrics - sizeOfContent) / 2;
+  };
 
   handleGetData = () => {
     const { ratio, shiftX, shiftY } = this.state;
