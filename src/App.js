@@ -105,9 +105,15 @@ class App extends Component {
 
     // Удаляем трансофрме со стейджа, по клику в любое место, кроме ректа
     this.stage.on('click',  (e) => {
+
+      if (e.target.getClassName() === 'Rect') {
+        return;
+      }
+
+
       const anchors = this.group.getChildren((node) => node.getClassName() === 'Circle');
 
-      if (anchors.length > 4) {
+      if (anchors.length >= 4) {
         anchors.forEach(anchor => anchor.destroy());
         this.layer.draw();
       }
@@ -453,6 +459,11 @@ class App extends Component {
             this.rect.attrs.y + this.rect.attrs.height,
             'bottomRight'
         );
+
+        // this.stage.find('Transformer').destroy();
+        if (!e.target.attrs.image) {
+          return
+        }
 
         this.setState({
           groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
