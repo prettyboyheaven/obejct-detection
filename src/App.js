@@ -454,96 +454,10 @@ class App extends Component {
             'bottomRight'
         );
 
-        // this.stage.find('Transformer').destroy();
-        if (!e.target.attrs.image) {
-          const currentGroup = this.state.groups
-              .filter(groupItem => groupItem._id === e.target.parent._id)[0];
-
-          const currentRect = currentGroup.getChildren(function(node) {
-            return node.getClassName() === 'Rect'
-          })[0];
-
-          const minHeight = 40;
-          const minWidth = 40;
-
-          // const transformer = new Konva.Transformer({
-          //   node: currentRect,
-          //   rotateEnabled: false,
-          //   keepRatio: true,
-          //   borderEnabled: true,
-          //   enabledAnchors: [
-          //     'top-left',
-          //     'top-center',
-          //     'top-right',
-          //     'middle-right',
-          //     'middle-left',
-          //     'bottom-left',
-          //     'bottom-center',
-          //     'bottom-right'
-          //   ],
-          //   boundBoxFunc: function(oldBoundBox, newBoundBox) {
-          //     if (newBoundBox.width < minWidth) {
-          //       newBoundBox.width = minWidth;
-          //     }
-          //
-          //     if (newBoundBox.height < minHeight) {
-          //       newBoundBox.height = minHeight;
-          //     }
-          //
-          //     return newBoundBox;
-          //   },
-          //   name: 'transformer'
-          // });
-
-          // currentRect.on('transform', (e) => {
-          //   const { layerX, layerY } = e.evt;
-          //
-          //   const { scaleX, scaleY, width, height, x, y } = e.currentTarget.attrs;
-          //   const crossImage = e.currentTarget.parent.getChildren(function(node) {
-          //     return node.getClassName() === 'Image'
-          //   })[0];
-          //
-          //   const rectNewWidth = width * scaleX;
-          //   const rectNewHeight = height * scaleY;
-          //
-          //   crossImage.x(this.getCenteredCoords(x, rectNewWidth, crossImage.attrs.width));
-          //   crossImage.y(this.getCenteredCoords(y, rectNewHeight, crossImage.attrs.height));
-          //
-          //   const { attrs: imageToDetectAttrs } = this.imageToDetect;
-          //   const imageToDetectX1 = imageToDetectAttrs.x;
-          //   const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
-          //   const imageToDetectY1 = imageToDetectAttrs.y;
-          //   const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
-          //
-          //   // трансформация вправо
-          //   if (layerX >= imageToDetectX2) {
-          //     transformer.stopTransform();
-          //   }
-          //
-          //   // трансформация влево
-          //   if (layerX <= imageToDetectX1) {
-          //     transformer.stopTransform();
-          //   }
-          //
-          //   if (layerY <= imageToDetectY1) {
-          //     transformer.stopTransform();
-          //   }
-          //
-          //   if (layerY >= imageToDetectY2) {
-          //     transformer.stopTransform();
-          //   }
-          //
-          // });
-
-          this.layer.draw();
-          return
-        }
-
         this.setState({
           groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
         });
 
-        this.stage.find('Transformer').destroy();
         item.remove();
         this.layer.draw()
       }));
