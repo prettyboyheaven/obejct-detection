@@ -105,24 +105,19 @@ class App extends Component {
 
     // Удаляем трансофрме со стейджа, по клику в любое место, кроме ректа
     this.stage.on('click',  (e) => {
+      const anchors = this.group.getChildren((node) => node.getClassName() === 'Circle');
 
-      console.log(e.target);
-
-      if (e.target.getClassName() === 'Circle') {
-        return
+      if (anchors.length > 4) {
+        anchors.forEach(anchor => anchor.destroy());
+        this.layer.draw();
       }
 
-      if (e.target.hasName('rect')) {
-        return
-      }
-
-      this.layer.draw();
     });
 
     this.stage.on('mousedown', (e) => {
 
       if (e.target.getClassName() === 'Circle') {
-        return;
+          return;
       }
 
       if (e.target.hasName('rect')) {
@@ -130,10 +125,6 @@ class App extends Component {
       }
 
       if (e.target.hasName('CROSS_IMAGE')) {
-        return;
-      }
-
-      if (e.target.parent && e.target.parent.hasName('transformer')) {
         return;
       }
 
@@ -241,20 +232,25 @@ class App extends Component {
         let bottomRight = this.group.find('.bottomRight')[0];
         let bottomLeft = this.group.find('.bottomLeft')[0];
 
-        topLeft.y(this.rect.y());
-        topLeft.x(this.rect.x());
+        if (topLeft) {
+          topLeft.y(this.rect.y());
+          topLeft.x(this.rect.x());
+        }
 
-        topRight.x(this.rect.x() + this.rect.width());
-        topRight.y(this.rect.y());
+        if (topRight) {
+          topRight.x(this.rect.x() + this.rect.width());
+          topRight.y(this.rect.y());
+        }
 
-        bottomLeft.x(this.rect.x());
-        bottomLeft.y(this.rect.y() + this.rect.height());
+        if (bottomLeft) {
+          bottomLeft.x(this.rect.x());
+          bottomLeft.y(this.rect.y() + this.rect.height());
+        }
 
-        bottomRight.x(this.rect.x() + this.rect.width());
-        bottomRight.y(this.rect.height() + this.rect.y())
-
-
-
+        if (bottomRight) {
+          bottomRight.x(this.rect.x() + this.rect.width());
+          bottomRight.y(this.rect.height() + this.rect.y())
+        }
       });
 
       this.rect = new Konva.Rect({
@@ -284,15 +280,17 @@ class App extends Component {
             groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
           });
 
+          this.stage.find('Transformer').destroy();
           item.remove();
           this.layer.draw();
           return
         }
 
+        // код для создания якорей,
+        // служит более удобным вариантом трансформера, который предоставляется из коробки
         const buildAnchor = (group, x, y, name) => {
 
           const update = (activeAnchor) => {
-            console.log('asd');
             activeAnchor.setDraggable(true);
             let group = activeAnchor.getParent();
             let topLeft = group.find('.topLeft')[0];
@@ -325,54 +323,93 @@ class App extends Component {
 
             rect.position(topLeft.position());
 
-            let width = topRight.getX() - topLeft.getX();
-            let height = bottomLeft.getY() - topLeft.getY();
+            const width = topRight.getX() - topLeft.getX();
+            const height = bottomLeft.getY() - topLeft.getY();
 
-            if(width < 30) {
-              width = 30;
-              this.rect.width(30);
-              activeAnchor.setDraggable(false);
+            if (width <= 30) {
+              rect.width(30);
+              return;
             }
 
-            if(height < 30) {
-              height = 30;
-              this.rect.height(30);
-              activeAnchor.setDraggable(false);
+            if (height <= 30) {
+              rect.height(30);
+              return;
             }
 
             if (width && height) {
               rect.width(width);
               rect.height(height);
             }
+
+            // const currentCrossImage = activeAnchor.parent.getChildren(
+            //     (node) => node.getClassName() === 'Image'
+            // )[0];
+            // console.log(currentCrossImage);
+            // currentCrossImage.x(100)
+
           };
 
           const anchor = new Konva.Circle({
             x: x,
             y: y,
-            stroke: '#666',
-            fill: '#ddd',
-            strokeWidth: 2,
-            radius: 5,
+            strokeWidth: 0.5,
+            stroke: '#000',
+            fill: '#fff',
+            radius: 4,
             name: name,
             draggable: true,
             dragOnTop: false,
+            cursor: 'pointer'
           });
 
           anchor.on('dragmove', (e) => {
+            const { layerX, layerY } = e.evt;
+
+            const rectWidth = this.rect.width();
+            const rectXPosition = this.rect.x();
+
+            const rectHeight = this.rect.height();
+            const rectYPosition = this.rect.y();
+
+            if (rectWidth === 30) {
+              if (layerX < rectXPosition) {
+                update(e.target);
+                return;
+              }
+
+              if (layerX >= rectXPosition + rectWidth && e.target.name() === 'topRight') {
+                update(e.target);
+                return;
+              }
+
+              if (layerX >= rectXPosition + rectWidth && e.target.name() === 'bottomRight') {
+                update(e.target);
+                return;
+              }
+
+              return;
+            }
+
+            if (rectHeight === 30) {
+              if (layerY < rectYPosition) {
+                update(e.target);
+                return;
+              }
+
+              if (layerY >= rectYPosition + rectHeight && e.target.name() === 'bottomRight') {
+                update(e.target);
+                return;
+              }
+
+              if (layerY >= rectYPosition + rectHeight && e.target.name() === 'bottomLeft') {
+                update(e.target);
+                return;
+              }
+
+              return;
+            }
+
             update(e.target);
-
-
-            // this.crossImage.x(this.getCenteredCoords(
-            //     this.rect.attrs.x,
-            //     this.rect.attrs.width,
-            //     this.crossImage.attrs.width
-            // ));
-            //
-            // this.crossImage.y(this.getCenteredCoords(
-            //     this.rect.attrs.y,
-            //     this.rect.attrs.height,
-            //     this.crossImage.attrs.height
-            // ))
           });
 
           anchor.on('mousedown', (e) => {
@@ -416,6 +453,99 @@ class App extends Component {
             this.rect.attrs.y + this.rect.attrs.height,
             'bottomRight'
         );
+
+        // this.stage.find('Transformer').destroy();
+        if (!e.target.attrs.image) {
+          const currentGroup = this.state.groups
+              .filter(groupItem => groupItem._id === e.target.parent._id)[0];
+
+          const currentRect = currentGroup.getChildren(function(node) {
+            return node.getClassName() === 'Rect'
+          })[0];
+
+          const minHeight = 40;
+          const minWidth = 40;
+
+          // const transformer = new Konva.Transformer({
+          //   node: currentRect,
+          //   rotateEnabled: false,
+          //   keepRatio: true,
+          //   borderEnabled: true,
+          //   enabledAnchors: [
+          //     'top-left',
+          //     'top-center',
+          //     'top-right',
+          //     'middle-right',
+          //     'middle-left',
+          //     'bottom-left',
+          //     'bottom-center',
+          //     'bottom-right'
+          //   ],
+          //   boundBoxFunc: function(oldBoundBox, newBoundBox) {
+          //     if (newBoundBox.width < minWidth) {
+          //       newBoundBox.width = minWidth;
+          //     }
+          //
+          //     if (newBoundBox.height < minHeight) {
+          //       newBoundBox.height = minHeight;
+          //     }
+          //
+          //     return newBoundBox;
+          //   },
+          //   name: 'transformer'
+          // });
+
+          // currentRect.on('transform', (e) => {
+          //   const { layerX, layerY } = e.evt;
+          //
+          //   const { scaleX, scaleY, width, height, x, y } = e.currentTarget.attrs;
+          //   const crossImage = e.currentTarget.parent.getChildren(function(node) {
+          //     return node.getClassName() === 'Image'
+          //   })[0];
+          //
+          //   const rectNewWidth = width * scaleX;
+          //   const rectNewHeight = height * scaleY;
+          //
+          //   crossImage.x(this.getCenteredCoords(x, rectNewWidth, crossImage.attrs.width));
+          //   crossImage.y(this.getCenteredCoords(y, rectNewHeight, crossImage.attrs.height));
+          //
+          //   const { attrs: imageToDetectAttrs } = this.imageToDetect;
+          //   const imageToDetectX1 = imageToDetectAttrs.x;
+          //   const imageToDetectX2 = imageToDetectAttrs.x + imageToDetectAttrs.width;
+          //   const imageToDetectY1 = imageToDetectAttrs.y;
+          //   const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
+          //
+          //   // трансформация вправо
+          //   if (layerX >= imageToDetectX2) {
+          //     transformer.stopTransform();
+          //   }
+          //
+          //   // трансформация влево
+          //   if (layerX <= imageToDetectX1) {
+          //     transformer.stopTransform();
+          //   }
+          //
+          //   if (layerY <= imageToDetectY1) {
+          //     transformer.stopTransform();
+          //   }
+          //
+          //   if (layerY >= imageToDetectY2) {
+          //     transformer.stopTransform();
+          //   }
+          //
+          // });
+
+          this.layer.draw();
+          return
+        }
+
+        this.setState({
+          groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
+        });
+
+        this.stage.find('Transformer').destroy();
+        item.remove();
+        this.layer.draw()
       }));
 
       this.group.add(this.rect);
@@ -541,8 +671,6 @@ class App extends Component {
 
       this.setState({
         isDrawing: false,
-        startDrawingPositionX: null,
-        startDrawingPositionY: null
       })
     });
 
