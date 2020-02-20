@@ -2,6 +2,11 @@ import React, { Component } from 'react';
 import Konva from 'konva';
 import './App.css';
 
+const TOP_LEFT = 'TOP_LEFT';
+const TOP_RIGHT = 'TOP_RIGHT';
+const BOTTOM_LEFT = 'BOTTOM_LEFT';
+const BOTTOM_RIGHT = 'BOTTOM_RIGHT';
+
 const image = 'https://pp.userapi.com/c543106/v543106905/4a3c5/AGfDzFGLFxc.jpg';
 
 const reverse = (r1, r2) => {
@@ -14,12 +19,11 @@ const reverse = (r1, r2) => {
     d = Math.abs(r1y - r2y);
     r1y = r2y; r2y = r1y + d;
   }
-  return ({x1: r1x, y1: r1y, x2: r2x, y2: r2y}); // return the corrected rect.
+  return ({x1: r1x, y1: r1y, x2: r2x, y2: r2y});
 };
 
 const updateDrag = (posNow, posStart, group, rect, layer) => {
-  // update rubber rect position
-  let posRect = reverse(posStart, posNow);
+  const posRect = reverse(posStart, posNow);
   group.x(posRect.x1);
   group.y(posRect.y1);
   rect.width(posRect.x2 - posRect.x1);
@@ -28,10 +32,170 @@ const updateDrag = (posNow, posStart, group, rect, layer) => {
   layer.draw();
 };
 
+const getCenteredCoords = (axisRectCoordinate, rectMetrics, sizeOfContent) => {
+  return axisRectCoordinate + (rectMetrics - sizeOfContent) / 2;
+};
+
+const updateCrossImageCords = (crossImage) => {
+  const rect = crossImage.parent.getChildren(node => node.getClassName() === 'Rect')[0];
+  const { x, y, width, height} = rect.attrs;
+
+  crossImage.x(getCenteredCoords(
+      x,
+      width,
+      crossImage.width()
+  ));
+
+  crossImage.y(getCenteredCoords(
+      y,
+      height,
+      crossImage.height()
+  ));
+};
+
+const updateAnchorsCoords = (group) => {
+  const rect = group.find(node => node.getClassName() === 'Rect')[0];
+  const topLeft = group.find(`.${TOP_LEFT}`)[0];
+  const topRight = group.find(`.${TOP_RIGHT}`)[0];
+  const bottomLeft = group.find(`.${BOTTOM_LEFT}`)[0];
+  const bottomRight = group.find(`.${BOTTOM_RIGHT}`)[0];
+
+  topLeft.x(rect.x());
+  topLeft.y(rect.y());
+
+  topRight.x(rect.x() + rect.width());
+  topRight.y(rect.y());
+
+  bottomLeft.x(rect.x());
+  bottomLeft.y(rect.y() + rect.height());
+
+  bottomRight.x(rect.x() + rect.width());
+  bottomRight.y(rect.height() + rect.y())
+};
+
+const addAnchor = ({x, y, name, imageToDetect }) => {
+  const minimalSizeOfRect = 30;
+
+  const imageX1 = imageToDetect.x();
+  const imageX2 = imageToDetect.x() + imageToDetect.width();
+  const imageY1 = imageToDetect.y();
+  const imageY2 = imageToDetect.y() + imageToDetect.height();
+
+  const getOptimalSizeOfRect = (size) => size > minimalSizeOfRect ? size : minimalSizeOfRect;
+
+  const anchor = new Konva.Circle({
+    x: x,
+    y: y,
+    strokeWidth: 0.5,
+    stroke: '#000',
+    fill: '#fff',
+    radius: 4,
+    name: name,
+    draggable: true,
+    cursor: 'pointer'
+  });
+
+  anchor.on('dragmove', (e) => {
+    const x = e.target.x();
+    const y = e.target.y();
+
+    const crossImage = e.target.parent.getChildren(node => node.getClassName() === 'Image')[0];
+    const rect = e.target.parent.getChildren(node => node.getClassName() === 'Rect')[0];
+    const topLeftAnchor = e.target.parent.find(`.${TOP_LEFT}`)[0];
+    const bottomLeftAnchor = e.target.parent.find(`.${BOTTOM_LEFT}`)[0];
+    const topRightAnchor = e.target.parent.find(`.${TOP_RIGHT}`)[0];
+    const activeAnchorName = e.target.name();
+
+    // ресайз по оси Х
+    switch (activeAnchorName) {
+      case (TOP_LEFT):
+      case (BOTTOM_LEFT): {
+
+        if (x <= imageX1) {
+          const coordsDiffX = topRightAnchor.x() - imageX1;
+          const newWidth = getOptimalSizeOfRect(coordsDiffX);
+          rect.width(newWidth);
+          rect.x(imageX1);
+          return;
+        }
+
+        const coordsDiffX = topRightAnchor.x() - x;
+        const newWidth = getOptimalSizeOfRect(coordsDiffX);
+        rect.width(newWidth);
+        rect.x(topRightAnchor.x() - newWidth);
+        break;
+      }
+
+      case (TOP_RIGHT):
+      case (BOTTOM_RIGHT): {
+
+        if (x >= imageX2) {
+          const coordsDiffX = imageX2 - topLeftAnchor.x();
+          const newWidth = getOptimalSizeOfRect(coordsDiffX);
+          rect.width(newWidth);
+          return;
+        }
+
+        const coordsDiffX = x - topLeftAnchor.x();
+        const newWidth = getOptimalSizeOfRect(coordsDiffX);
+        rect.width(newWidth);
+
+        break;
+      }
+      default: {
+        return null;
+      }
+    }
+
+    // Ресайз по оси Y
+    switch (activeAnchorName) {
+      case (BOTTOM_LEFT):
+      case (BOTTOM_RIGHT): {
+
+        if (y >= imageY2) {
+          const coordsDiffY = imageY2 - topLeftAnchor.y();
+          const newHeight = getOptimalSizeOfRect(coordsDiffY);
+          rect.height(newHeight);
+          return;
+        }
+
+        const coordsDiffY = y - topLeftAnchor.y();
+        const newHeight = getOptimalSizeOfRect(coordsDiffY);
+        rect.height(newHeight);
+        break;
+      }
+      case (TOP_LEFT):
+      case (TOP_RIGHT): {
+
+        if (y <= imageY1) {
+          const coordsDiffY = bottomLeftAnchor.y() + imageY1;
+          const newHeight = getOptimalSizeOfRect(coordsDiffY);
+          rect.y(imageY1);
+          rect.height(newHeight);
+          return;
+        }
+
+        const coordsDiffY = bottomLeftAnchor.y() - y;
+        const newHeight = getOptimalSizeOfRect(coordsDiffY);
+        rect.height(newHeight);
+        rect.y(bottomLeftAnchor.y() - newHeight);
+        break;
+      }
+      default: {
+        return null;
+      }
+    }
+
+    updateCrossImageCords(crossImage);
+  });
+
+  return anchor;
+};
+
 class App extends Component {
   state = {
-    canvasHeight: 450,
-    canvasWidth: 700,
+    canvasHeight: 540,
+    canvasWidth: 1000,
     isDrawing: false,
     startDrawingPositionX: null,
     startDrawingPositionY: null,
@@ -40,6 +204,18 @@ class App extends Component {
     scale: null,
     naturalScale: null,
     cords: [{width: 0, height: 0, x: 0, y: 0}]
+  };
+
+  startDrawing = () => {
+    this.setState({
+      isDrawing: true
+    })
+  };
+
+  stopDrawing = () => {
+    this.setState({
+      isDrawing: false
+    })
   };
 
   stage;
@@ -103,30 +279,14 @@ class App extends Component {
     };
     imageObj.src = image;
 
-    // Удаляем трансофрме со стейджа, по клику в любое место, кроме ректа
-    this.stage.on('click',  (e) => {
-
-      if (e.target.getClassName() === 'Rect') {
-        return;
-      }
-
-
-      const anchors = this.group.getChildren((node) => node.getClassName() === 'Circle');
-
-      if (anchors.length >= 4) {
-        anchors.forEach(anchor => anchor.destroy());
-        this.layer.draw();
-      }
-
-    });
-
     this.stage.on('mousedown', (e) => {
 
-      if (e.target.getClassName() === 'Circle') {
-          return;
-      }
+      // присваиваем группу для редактирования размеров
+      this.group = e.target.parent;
 
-      if (e.target.hasName('rect')) {
+      const targetClassName = e.target.getClassName();
+
+      if (targetClassName === 'Circle' || targetClassName === 'Rect') {
         return;
       }
 
@@ -163,8 +323,9 @@ class App extends Component {
         return
       }
 
+      this.startDrawing();
+
       this.setState({
-        isDrawing: true,
         startDrawingPositionX: e.evt.layerX,
         startDrawingPositionY: e.evt.layerY
       });
@@ -176,14 +337,13 @@ class App extends Component {
 
       this.group.on('dragmove', (e) => {
         const rect = e.target;
-        const { scaleX, scaleY } = rect.attrs;
 
         const crossImage = rect.parent.getChildren(function(node) {
           return node.getClassName() === 'Image';
         })[0];
 
-        const rectWidth = rect.attrs.width * scaleX;
-        const rectHeight = rect.attrs.height * scaleY;
+        const rectWidth = rect.attrs.width ;
+        const rectHeight = rect.attrs.height;
 
         const groupPositionX = rect.attrs.x;
         const groupPositionY = rect.attrs.y;
@@ -202,61 +362,27 @@ class App extends Component {
 
         // запрет выхода за правый край по Х
         if ( sumX >= imageToDetectX2) {
-          rect.attrs.x = imageToDetectX2 - rectWidth;
+          rect.x(imageToDetectX2 - rectWidth);
         }
 
         // запрет выхода за левый край по Х
         if (groupPositionX <= imageToDetectX1) {
-          rect.attrs.x = imageToDetectX1;
+          rect.x(imageToDetectX1);
         }
 
         // запрет выхода наверх по Y
         if (groupPositionY <= imageToDetectY1) {
-          rect.attrs.y = imageToDetectY1;
+          rect.y(imageToDetectY1);
         }
 
         // запрет выходна вниз по Y
         if ( sumY >= imageToDetectY2 ) {
-          rect.attrs.y = imageToDetectY2 - rectHeight;
+          rect.y(imageToDetectY2 - rectHeight);
         }
 
-        // вновь центрируем крестик для удаления
-        crossImage.x(this.getCenteredCoords(
-            rect.attrs.x,
-            rectWidth,
-            crossImage.attrs.width
-        ));
-
-        crossImage.y(this.getCenteredCoords(
-            rect.attrs.y,
-            rectHeight,
-            crossImage.attrs.height
-        ));
-
-        let topLeft = this.group.find('.topLeft')[0];
-        let topRight = this.group.find('.topRight')[0];
-        let bottomRight = this.group.find('.bottomRight')[0];
-        let bottomLeft = this.group.find('.bottomLeft')[0];
-
-        if (topLeft) {
-          topLeft.y(this.rect.y());
-          topLeft.x(this.rect.x());
-        }
-
-        if (topRight) {
-          topRight.x(this.rect.x() + this.rect.width());
-          topRight.y(this.rect.y());
-        }
-
-        if (bottomLeft) {
-          bottomLeft.x(this.rect.x());
-          bottomLeft.y(this.rect.y() + this.rect.height());
-        }
-
-        if (bottomRight) {
-          bottomRight.x(this.rect.x() + this.rect.width());
-          bottomRight.y(this.rect.height() + this.rect.y())
-        }
+        // обновление иконки закрытия и якорей
+        updateCrossImageCords(crossImage);
+        updateAnchorsCoords(this.group)
       });
 
       this.rect = new Konva.Rect({
@@ -281,195 +407,18 @@ class App extends Component {
 
       // добавляем событие удаления только по клику на иконку крестика
       this.state.groups.forEach(item => item.on('click', (e) => {
+
+        // Удаление по клику
         if (e.target.attrs.image) {
           this.setState({
             groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
           });
 
-          this.stage.find('Transformer').destroy();
           item.remove();
           this.layer.draw();
           return
         }
 
-        // код для создания якорей,
-        // служит более удобным вариантом трансформера, который предоставляется из коробки
-        const buildAnchor = (group, x, y, name) => {
-
-          const update = (activeAnchor) => {
-            activeAnchor.setDraggable(true);
-            let group = activeAnchor.getParent();
-            let topLeft = group.find('.topLeft')[0];
-            let topRight = group.find('.topRight')[0];
-            let bottomRight = group.find('.bottomRight')[0];
-            let bottomLeft = group.find('.bottomLeft')[0];
-            let rect = this.rect;
-            let anchorX = activeAnchor.getX();
-            let anchorY = activeAnchor.getY();
-
-            switch (activeAnchor.getName()) {
-              case 'topLeft':
-                topRight.y(anchorY);
-                bottomLeft.x(anchorX);
-                break;
-              case 'topRight':
-                topLeft.y(anchorY);
-                bottomRight.x(anchorX);
-                break;
-              case 'bottomRight':
-                bottomLeft.y(anchorY);
-                topRight.x(anchorX);
-                break;
-              case 'bottomLeft':
-                bottomRight.y(anchorY);
-                topLeft.x(anchorX);
-                break;
-              default: alert('Ошибка при обновлении позиционирования якорей')
-            }
-
-            rect.position(topLeft.position());
-
-            const width = topRight.getX() - topLeft.getX();
-            const height = bottomLeft.getY() - topLeft.getY();
-
-            if (width <= 30) {
-              rect.width(30);
-              return;
-            }
-
-            if (height <= 30) {
-              rect.height(30);
-              return;
-            }
-
-            if (width && height) {
-              rect.width(width);
-              rect.height(height);
-            }
-
-            // const currentCrossImage = activeAnchor.parent.getChildren(
-            //     (node) => node.getClassName() === 'Image'
-            // )[0];
-            // console.log(currentCrossImage);
-            // currentCrossImage.x(100)
-
-          };
-
-          const anchor = new Konva.Circle({
-            x: x,
-            y: y,
-            strokeWidth: 0.5,
-            stroke: '#000',
-            fill: '#fff',
-            radius: 4,
-            name: name,
-            draggable: true,
-            dragOnTop: false,
-            cursor: 'pointer'
-          });
-
-          anchor.on('dragmove', (e) => {
-            const { layerX, layerY } = e.evt;
-
-            const rectWidth = this.rect.width();
-            const rectXPosition = this.rect.x();
-
-            const rectHeight = this.rect.height();
-            const rectYPosition = this.rect.y();
-
-            if (rectWidth === 30) {
-              if (layerX < rectXPosition) {
-                update(e.target);
-                return;
-              }
-
-              if (layerX >= rectXPosition + rectWidth && e.target.name() === 'topRight') {
-                update(e.target);
-                return;
-              }
-
-              if (layerX >= rectXPosition + rectWidth && e.target.name() === 'bottomRight') {
-                update(e.target);
-                return;
-              }
-
-              return;
-            }
-
-            if (rectHeight === 30) {
-              if (layerY < rectYPosition) {
-                update(e.target);
-                return;
-              }
-
-              if (layerY >= rectYPosition + rectHeight && e.target.name() === 'bottomRight') {
-                update(e.target);
-                return;
-              }
-
-              if (layerY >= rectYPosition + rectHeight && e.target.name() === 'bottomLeft') {
-                update(e.target);
-                return;
-              }
-
-              return;
-            }
-
-            update(e.target);
-          });
-
-          anchor.on('mousedown', (e) => {
-            e.target.setDraggable(true);
-            this.group.setDraggable(false);
-            anchor.moveToTop();
-          });
-
-          anchor.on('dragend', () => {
-            this.group.setDraggable(true);
-          });
-
-          this.group.add(anchor);
-          this.layer.draw();
-        };
-
-        buildAnchor(
-            this.group,
-            this.rect.attrs.x,
-            this.rect.attrs.y,
-            'topLeft'
-        );
-
-        buildAnchor(
-            this.group,
-            this.rect.attrs.x + this.rect.attrs.width,
-            this.rect.attrs.y,
-            'topRight'
-        );
-
-        buildAnchor(
-            this.group,
-            this.rect.attrs.x,
-            this.rect.attrs.y + this.rect.attrs.height,
-            'bottomLeft'
-        );
-
-        buildAnchor(
-            this.group,
-            this.rect.attrs.x + this.rect.attrs.width,
-            this.rect.attrs.y + this.rect.attrs.height,
-            'bottomRight'
-        );
-
-        // this.stage.find('Transformer').destroy();
-        if (!e.target.attrs.image) {
-          return
-        }
-
-        this.setState({
-          groups: this.state.groups.filter(groupItem => groupItem._id !== item._id)
-        });
-
-        item.remove();
         this.layer.draw()
       }));
 
@@ -480,7 +429,9 @@ class App extends Component {
 
     // рисуем рект, при этом отменяем всплытие события для того, чтобы при днд не рисовать еще один рект
     this.stage.on('mousemove', (e) => {
-      e.cancelBubble = true;
+      if (!this.state.isDrawing) {
+        return;
+      }
 
       if (!this.imageToDetect) {
         return
@@ -499,22 +450,45 @@ class App extends Component {
       // даем возможность рисовать только в рамках изображения
       if (posNow.x < imageToDetectX1) {
         posNow.x = imageToDetectX1;
+        const rectX2 = this.rect.x() + this.rect.width();
+        this.rect.x(imageToDetectX1);
+        this.rect.width(rectX2 - imageToDetectX1);
+        this.layer.draw();
+        this.addControls();
+        this.stopDrawing();
+        return;
       }
 
       if (posNow.x > imageToDetectX2) {
         posNow.x = imageToDetectX2;
+        const newWidth = imageToDetectX2 - this.rect.x();
+        this.rect.width(newWidth);
+        this.layer.draw();
+        this.addControls();
+        this.stopDrawing();
+        return;
       }
 
-      if (posNow.y < imageToDetectY1) {
+      if (posNow.y <= imageToDetectY1) {
         posNow.y = imageToDetectY1;
+        const newHeight = imageToDetectY1 + ( this.rect.y() + this.rect.height());
+        this.rect.y(imageToDetectY1);
+        this.rect.height(newHeight);
+        this.layer.draw();
+        this.addControls();
+        this.stopDrawing();
+
+        return;
       }
 
-      if (posNow.y > imageToDetectY2) {
-        posNow.y = imageToDetectY2
-      }
-
-      if (!this.state.isDrawing) {
-        return
+      if (imageToDetectY2 - posNow.y <= 5) {
+        console.log("AHTUNG");
+        posNow.y = imageToDetectY2;
+        this.rect.height(imageToDetectY2 - this.rect.y());
+        this.layer.draw();
+        this.addControls();
+        this.stopDrawing();
+        return;
       }
 
       updateDrag(
@@ -526,84 +500,93 @@ class App extends Component {
       );
     });
 
-    // проверяем условия ректа, если он мини, то дополняем его до минимальных размеров и добавляем иконку удаления
     this.stage.on('mouseup', () => {
-
       const { isDrawing } = this.state;
 
       if (!isDrawing) {
-        return
-      }
-
-      const { attrs } = this.rect;
-
-      const rectHeight = Math.abs(attrs.height);
-      const rectWidth = Math.abs(attrs.width);
-
-      if (rectWidth === 0 && rectHeight === 0) {
-        this.group.remove();
-        this.layer.draw();
         return;
       }
 
-      if (rectHeight < 20) {
-        attrs.height = 30;
-      }
-
-      if (rectWidth < 20) {
-        attrs.width = 30;
-      }
-
-      const imageToDetectX2 = this.imageToDetect.attrs.x + this.imageToDetect.attrs.width;
-      const imageToDetectY2 = this.imageToDetect.attrs.y + this.imageToDetect.attrs.height;
-
-      const rectX2 = attrs.width + attrs.x;
-      const rectY2 = attrs.height + attrs.y;
-
-      // если рисуем около границы и он выезжает за ее пределы
-      // внизу
-      if (rectX2 > imageToDetectX2) {
-        this.rect.x(imageToDetectX2 - this.rect.attrs.width);
-      }
-      // справа
-      if (rectY2 > imageToDetectY2) {
-        this.rect.y(imageToDetectY2 - this.rect.attrs.height);
-      }
-
-      this.layer.draw();
-
-      const crossImageObj = new Image();
-
-      crossImageObj.onload = () => {
-
-        const imageSize = 15;
-
-        this.crossImage = new Konva.Image({
-          x: this.getCenteredCoords(this.rect.attrs.x, this.rect.attrs.width, imageSize),
-          y: this.getCenteredCoords(this.rect.attrs.y, this.rect.attrs.height, imageSize),
-          image: crossImageObj,
-          width: imageSize,
-          height: imageSize,
-          keepRatio: true,
-          name: 'CROSS_IMAGE'
-        });
-
-        this.group.add(this.crossImage);
-        this.layer.draw();
-      };
-
-      crossImageObj.src = 'https://image.flaticon.com/icons/svg/463/463065.svg';
-
-      this.setState({
-        isDrawing: false,
-      })
+      this.drawRect()
     });
 
     this.stage.add(this.layer);
   }
 
-  getCenteredCoords = (axisRectCoordinate, rectMetrics, sizeOfContent) => {
-    return axisRectCoordinate + (rectMetrics - sizeOfContent) / 2;
+  addControls = () => {
+    const crossImageObj = new Image();
+
+    crossImageObj.onload = () => {
+      const imageSize = 15;
+
+      this.crossImage = new Konva.Image({
+        x: getCenteredCoords(this.rect.attrs.x, this.rect.attrs.width, imageSize),
+        y: getCenteredCoords(this.rect.attrs.y, this.rect.attrs.height, imageSize),
+        image: crossImageObj,
+        width: imageSize,
+        height: imageSize,
+        keepRatio: true,
+        name: 'CROSS_IMAGE'
+      });
+
+      this.group.add(addAnchor({
+        x: this.rect.x(),
+        y: this.rect.y(),
+        name: TOP_LEFT,
+        imageToDetect: this.imageToDetect,
+      }));
+
+      this.group.add(addAnchor({
+        x: this.rect.x() + this.rect.width(),
+        y: this.rect.y(),
+        name: TOP_RIGHT,
+        imageToDetect: this.imageToDetect,
+      }));
+
+      this.group.add(addAnchor({
+        x: this.rect.x(),
+        y: this.rect.y() + this.rect.height(),
+        name: BOTTOM_LEFT,
+        imageToDetect: this.imageToDetect,
+      }));
+
+      this.group.add(addAnchor({
+        x: this.rect.x() + this.rect.width(),
+        y: this.rect.y() + this.rect.height(),
+        name: BOTTOM_RIGHT,
+        imageToDetect: this.imageToDetect,
+      }));
+
+      this.group.add(this.crossImage);
+      this.layer.draw();
+    };
+
+    crossImageObj.src = 'https://image.flaticon.com/icons/svg/463/463065.svg';
+  };
+
+  drawRect = () => {
+    const { isDrawing } = this.state;
+
+    if (!isDrawing) {
+      return;
+    }
+
+    if (this.rect.height() === 0 && this.rect.width() === 0) {
+      this.group.remove();
+      this.layer.draw();
+      return;
+    }
+
+    if (this.rect.height() < 20) {
+      this.rect.height(30);
+    }
+
+    if (this.rect.width() < 20) {
+      this.rect.width(30);
+    }
+
+    this.addControls();
+    this.stopDrawing();
   };
 
   handleGetData = () => {
@@ -623,17 +606,18 @@ class App extends Component {
 
     this.state.groups.forEach(group => {
       const { x, y, width, height } = group.getClientRect();
+      const anchorSize = 5;
+      const borderSize = 1;
 
       groupsCoordinates.push( new CoordsWithResizeToOriginalImage(
-          Math.round((x - shiftX) / ratio),
-          Math.round((y - shiftY) / ratio),
-          Math.round(width / ratio),
-          Math.round(height / ratio)
+          Math.round((x - borderSize + anchorSize - shiftX) / ratio),
+          Math.round((y - borderSize + anchorSize - shiftY) / ratio),
+          Math.round(width - 10 / ratio),
+          Math.round(height - 10 / ratio)
       ))
     });
 
     const filteredGroupsCoordinates = groupsCoordinates.filter(item => {
-
       return item;
     });
 
@@ -669,7 +653,7 @@ class App extends Component {
 
     return (
         [
-            <div key='1' id='container' style={ { border: '5px solid black', width: '700px', height: '450px', margin: '25px 0' } } />,
+            <div key='1' id='container' style={ { border: '5px solid black', width: '1000px', height: '540px', margin: '25px 0' } } />,
             <button onClick={ this.handleGetData } key='2'>get rects</button>,
             <div key='3' className='container' style={ { position: 'relative' } }>
               <img src={ image } alt=""/>
