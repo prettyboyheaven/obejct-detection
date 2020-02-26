@@ -73,15 +73,16 @@ const updateAnchorsCoords = (group) => {
   bottomRight.y(rect.height() + rect.y())
 };
 
+const minimalSizeOfRect = 30;
+const getOptimalSizeOfRect = (size) => size > minimalSizeOfRect ? size : minimalSizeOfRect;
+
 const addAnchor = ({x, y, name, imageToDetect }) => {
-  const minimalSizeOfRect = 30;
 
   const imageX1 = imageToDetect.x();
   const imageX2 = imageToDetect.x() + imageToDetect.width();
   const imageY1 = imageToDetect.y();
   const imageY2 = imageToDetect.y() + imageToDetect.height();
 
-  const getOptimalSizeOfRect = (size) => size > minimalSizeOfRect ? size : minimalSizeOfRect;
 
   const anchor = new Konva.Circle({
     x: x,
@@ -448,46 +449,48 @@ class App extends Component {
       const imageToDetectY2 = imageToDetectAttrs.y + imageToDetectAttrs.height;
 
       // даем возможность рисовать только в рамках изображения
+
+      // слева
       if (posNow.x < imageToDetectX1) {
         posNow.x = imageToDetectX1;
         const rectX2 = this.rect.x() + this.rect.width();
+        const newWidth = rectX2 - imageToDetectX1;
         this.rect.x(imageToDetectX1);
-        this.rect.width(rectX2 - imageToDetectX1);
+        this.drawRectangle({ width: newWidth, height: this.rect.height() });
+       /* this.rect.width(this.getMinSizeOfRect(newWidth));
+        this.rect.height(this.getMinSizeOfRect(this.rect.height()));*/
         this.layer.draw();
-        this.addControls();
-        this.stopDrawing();
+        // this.addControls();
+        // this.stopDrawing();
         return;
       }
 
+      // справа
       if (posNow.x > imageToDetectX2) {
         posNow.x = imageToDetectX2;
         const newWidth = imageToDetectX2 - this.rect.x();
-        this.rect.width(newWidth);
+        this.drawRectangle({ width: newWidth, height: this.rect.height() });
+        this.rect.x(imageToDetectX2 - this.rect.width());
         this.layer.draw();
-        this.addControls();
-        this.stopDrawing();
         return;
       }
 
-      if (posNow.y <= imageToDetectY1) {
+      // сверху
+      if (posNow.y - imageToDetectY1 <= 5) {
         posNow.y = imageToDetectY1;
-        const newHeight = imageToDetectY1 + ( this.rect.y() + this.rect.height());
+        const newHeight = imageToDetectY1 + (this.rect.y() + this.rect.height());
+        this.drawRectangle({ width: this.rect.width(), height: newHeight });
         this.rect.y(imageToDetectY1);
-        this.rect.height(newHeight);
         this.layer.draw();
-        this.addControls();
-        this.stopDrawing();
-
         return;
       }
 
+      // снизу
       if (imageToDetectY2 - posNow.y <= 5) {
-        console.log("AHTUNG");
+        const newHeight = imageToDetectY2 - this.rect.y();
         posNow.y = imageToDetectY2;
-        this.rect.height(imageToDetectY2 - this.rect.y());
+        this.drawRectangle({ width: this.rect.width(), height: newHeight });
         this.layer.draw();
-        this.addControls();
-        this.stopDrawing();
         return;
       }
 
@@ -507,7 +510,7 @@ class App extends Component {
         return;
       }
 
-      this.drawRect()
+      this.drawRectangle({ width: this.rect.width(), height: this.rect.height() })
     });
 
     this.stage.add(this.layer);
@@ -564,29 +567,32 @@ class App extends Component {
     crossImageObj.src = 'https://image.flaticon.com/icons/svg/463/463065.svg';
   };
 
-  drawRect = () => {
+  drawRectangle = ({ width, height }) => {
     const { isDrawing } = this.state;
 
     if (!isDrawing) {
       return;
     }
 
-    if (this.rect.height() === 0 && this.rect.width() === 0) {
+    if (width === 0 && height === 0) {
       this.group.remove();
       this.layer.draw();
       return;
     }
 
-    if (this.rect.height() < 20) {
-      this.rect.height(30);
-    }
-
-    if (this.rect.width() < 20) {
-      this.rect.width(30);
-    }
+    this.rect.height(this.getMinSizeOfRect(height));
+    this.rect.width(this.getMinSizeOfRect(width));
 
     this.addControls();
     this.stopDrawing();
+  };
+
+  getMinSizeOfRect = (value) => {
+    if (value < 20) {
+      return 30;
+    }
+
+    return value;
   };
 
   handleGetData = () => {
